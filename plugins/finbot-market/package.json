@@ -1,0 +1,18 @@
+{
+  "name": "finbot-market",
+  "version": "1.0.0",
+  "description": "FinBot 金融数据查询与分析插件",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openclaw/plugin-sdk": "^2.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}

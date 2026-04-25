@@ -1,0 +1,54 @@
+gateway:
+  port: 18789
+  logLevel: info
+
+  channels:
+    telegram:
+      enabled: true
+      botToken: ${TELEGRAM_BOT_TOKEN}
+      allowlist:
+        entries: ["${USER_TELEGRAM_ID}"]
+        allowWhenEmpty: false
+
+    email:
+      enabled: true
+      smtp:
+        host: "smtp.gmail.com"
+        port: 587
+        user: ${EMAIL_USER}
+        pass: ${EMAIL_APP_PASSWORD}
+      from: ${EMAIL_USER}
+      to: ${NOTIFICATION_EMAIL}
+
+  cron:
+    jobs:
+      - id: "market-open-brief"
+        schedule: "0 9 * * 1-5"
+        agentId: "finbot"
+        command: "sendMarketBrief"
+        enabled: true
+        sandboxMode: non-main
+
+      - id: "portfolio-check"
+        schedule: "0 15 * * 1-5"
+        agentId: "finbot"
+        command: "analyzePortfolio"
+        enabled: true
+        sandboxMode: non-main
+
+      - id: "weekly-report"
+        schedule: "0 18 * * 5"
+        agentId: "finbot"
+        command: "sendWeeklyReport"
+        enabled: true
+        sandboxMode: non-main
+
+  alerts:
+    priceAlerts:
+      enabled: true
+      checkInterval: "5m"
+
+  plugins:
+    scanDirs:
+      - "./plugins"
+    autoLoad: true

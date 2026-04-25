@@ -1,0 +1,20 @@
+{
+  "name": "finbot",
+  "version": "1.0.0",
+  "description": "基于 OpenClaw 的金融投资助手",
+  "scripts": {
+    "start": "openclaw start --config-dir ./",
+    "dev": "openclaw start --foreground --log-level debug",
+    "doctor": "openclaw doctor",
+    "plugin:build": "cd plugins/finbot-market && npm run build",
+    "plugin:validate": "openclaw plugin validate ./plugins/finbot-market"
+  },
+  "dependencies": {
+    "@openclaw/gateway": "^2.2.0"
+  },
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "^2.2.0",
+    "typescript": "^5.4.0"
+  },
+  "license": "MIT"
+}

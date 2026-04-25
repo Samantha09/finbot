@@ -1,0 +1,30 @@
+# 环境变量
+.env
+
+# OpenClaw 用户数据
+.openclaw/
+conversations/
+memory-banks/
+credentials/
+logs/
+
+# Node.js
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript 编译产物
+dist/
+*.js
+*.js.map
+*.d.ts
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

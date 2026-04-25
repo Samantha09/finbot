@@ -1,0 +1,103 @@
+{
+  "name": "finbot-market",
+  "version": "1.0.0",
+  "description": "FinBot 金融数据查询与分析插件",
+  "activation": {
+    "triggers": [
+      { "kind": "command", "command": "fin" },
+      { "kind": "capability", "capability": "financial_data" }
+    ]
+  },
+  "tools": [
+    {
+      "name": "marketQuery",
+      "description": "查询股票、基金、加密货币的实时行情。支持 A股(000001.SZ)、港股(00700.HK)、美股(AAPL)、加密货币(BTC-USD)",
+      "entryPoint": "./dist/tools/market-query.js",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "标的代码，如 000001.SZ、00700.HK、AAPL、BTC-USD"
+          },
+          "market": {
+            "type": "string",
+            "enum": ["A股", "港股", "美股", "crypto"],
+            "description": "市场类型（可选，自动识别）"
+          }
+        },
+        "required": ["symbol"]
+      }
+    },
+    {
+      "name": "portfolioAnalysis",
+      "description": "分析投资组合的集中度、相关性和风险暴露",
+      "entryPoint": "./dist/tools/portfolio-analysis.js",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "holdings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "symbol": { "type": "string" },
+                "weight": { "type": "number" },
+                "cost": { "type": "number" }
+              },
+              "required": ["symbol", "weight"]
+            }
+          }
+        },
+        "required": ["holdings"]
+      }
+    },
+    {
+      "name": "riskAssessment",
+      "description": "评估单只标的或组合的风险等级",
+      "entryPoint": "./dist/tools/risk-assessment.js",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string" },
+          "positionSize": { "type": "number", "description": "仓位占比（0-1）" }
+        },
+        "required": ["symbol"]
+      }
+    },
+    {
+      "name": "newsFetch",
+      "description": "获取标的相关的最新财经新闻",
+      "entryPoint": "./dist/tools/news-fetch.js",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string" },
+          "limit": { "type": "number", "default": 5 }
+        },
+        "required": ["symbol"]
+      }
+    },
+    {
+      "name": "setAlert",
+      "description": "设置价格提醒（止盈/止损）",
+      "entryPoint": "./dist/tools/set-alert.js",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string" },
+          "condition": { "type": "string", "enum": ["above", "below"] },
+          "price": { "type": "number" },
+          "message": { "type": "string" }
+        },
+        "required": ["symbol", "condition", "price"]
+      }
+    }
+  ],
+  "permissions": ["net.fetch", "fs.read", "fs.write"],
+  "sandbox": "docker",
+  "compatibility": {
+    "minCoreVersion": "2.0.0",
+    "maxCoreVersion": "2.x.x"
+  }
+}
