@@ -15,7 +15,7 @@
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.4.25"
+    "openclaw": ">=2026.4.24"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

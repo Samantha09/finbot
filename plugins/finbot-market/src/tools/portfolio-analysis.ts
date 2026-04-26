@@ -1,4 +1,4 @@
-import { ToolContext, ToolResult } from "openclaw/plugin-sdk";
+import { ToolContext, ToolResult } from "../types";
 
 interface Holding {
   symbol: string;

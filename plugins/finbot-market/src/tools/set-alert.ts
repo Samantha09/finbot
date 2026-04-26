@@ -1,4 +1,4 @@
-import { ToolContext, ToolResult } from "openclaw/plugin-sdk";
+import { ToolContext, ToolResult } from "../types";
 import * as fs from "fs/promises";
 import * as path from "path";
 

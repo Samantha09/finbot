@@ -9,9 +9,7 @@
     "plugin:build": "cd plugins/finbot-market && npm run build",
     "plugin:validate": "openclaw plugin validate ./plugins/finbot-market"
   },
-  "dependencies": {
-    "openclaw": "^2026.4.25"
-  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "^5.4.0"
   },
