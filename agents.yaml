@@ -2,7 +2,7 @@ agents:
   finbot:
     id: finbot
     default: true
-    model: claude-sonnet-4-6
+    model: minimax/MiniMax-M2.7
     thinkingDefault: off
     maxSteps: 15
 

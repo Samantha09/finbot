@@ -6,7 +6,7 @@ services:
     environment:
       TZ: ${TZ:-Asia/Shanghai}
     volumes:
-      - finbot-data:/home/node/.openclaw
+      - finbot-data:/root/.openclaw
     ports:
       - "${GATEWAY_PORT:-18789}:18789"
     restart: unless-stopped

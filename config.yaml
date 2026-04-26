@@ -2,20 +2,26 @@ gateway:
   port: 18789
   logLevel: info
 
+  models:
+    providers:
+      minimax:
+        baseUrl: "https://api.minimaxi.com/anthropic"
+        apiKey: "${MINIMAX_API_KEY}"
+        api: "anthropic-messages"
+        authHeader: true
+        models:
+          - id: "MiniMax-M2.7"
+            name: "MiniMax M2.7"
+            reasoning: true
+            contextWindow: 204800
+            maxTokens: 131072
+
   channels:
     telegram:
-      enabled: true
-      botToken: ${TELEGRAM_BOT_TOKEN}
+      enabled: false
 
     email:
-      enabled: true
-      smtp:
-        host: "smtp.gmail.com"
-        port: 587
-        user: ${EMAIL_USER}
-        pass: ${EMAIL_APP_PASSWORD}
-      from: ${EMAIL_USER}
-      to: ${NOTIFICATION_EMAIL}
+      enabled: false
 
   cron:
     enabled: true
