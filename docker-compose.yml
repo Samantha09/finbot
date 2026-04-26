@@ -1,0 +1,15 @@
+services:
+  finbot:
+    build: .
+    container_name: finbot
+    env_file: .env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - finbot-data:/home/node/.openclaw
+    ports:
+      - "${GATEWAY_PORT:-18789}:18789"
+    restart: unless-stopped
+
+volumes:
+  finbot-data:
