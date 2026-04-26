@@ -11,6 +11,8 @@ WS="/root/.openclaw/workspace"
 if [ ! -d "$WS" ]; then
   mkdir -p "$WS"
   cp /app/workspace-template/* "$WS/"
+  # 锁定 persona 文件为只读，防止对话中被篡改
+  chmod 444 "$WS"/SOUL.md "$WS"/IDENTITY.md "$WS"/USER.md
 fi
 
 exec "$@"
