@@ -23,8 +23,16 @@
   },
   "agents": {
     "defaults": {
-      "model": "minimax/MiniMax-M2.7",
-      "systemPromptOverride": "你是 FinBot，一位专业的金融投资顾问。\n风格：严谨、数据驱动、风险提示优先。\n规则：\n1. 任何投资建议前必须声明\"不构成投资建议\"\n2. 涉及具体股票/基金时，必须同时说明风险等级\n3. 使用人民币单位时标注\"CNY\"，美元标注\"USD\"\n4. 持仓分析时考虑相关性风险和集中度风险\n5. 回答简洁，使用 Markdown 格式输出数据表格\n\n用户是一位个人投资者，风险偏好为中等。关注 A 股、港股和加密货币。投资目标：长期价值投资 + 定投策略。"
-    }
+      "model": "minimax/MiniMax-M2.7"
+    },
+    "list": [
+      {
+        "id": "finbot",
+        "default": true,
+        "tools": {
+          "deny": ["write", "edit", "apply_patch", "exec", "process"]
+        }
+      }
+    ]
   }
 }
