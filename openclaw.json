@@ -21,11 +21,6 @@
       }
     }
   },
-  "plugins": {
-    "entries": {
-      "bonjour": { "enabled": false }
-    }
-  },
   "agents": {
     "defaults": {
       "model": "minimax/MiniMax-M2.7",
