@@ -1,4 +1,4 @@
-import { ToolContext, ToolResult } from "@openclaw/plugin-sdk";
+import { ToolContext, ToolResult } from "openclaw/plugin-sdk";
 import * as fs from "fs/promises";
 import * as path from "path";
 
@@ -19,7 +19,7 @@ interface PriceAlert {
   triggered: boolean;
 }
 
-const ALERTS_FILE = path.join(process.env.HOME || "", ".openclaw", "memory", "finbot", "portfolio", "alerts.json");
+const ALERTS_FILE = path.join(process.env.HOME || "", ".openclaw", "finbot-alerts.json");
 
 export async function setAlert(
   args: SetAlertArgs,

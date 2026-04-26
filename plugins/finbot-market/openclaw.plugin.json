@@ -1,13 +1,7 @@
 {
-  "name": "finbot-market",
-  "version": "1.0.0",
+  "id": "finbot-market",
+  "enabledByDefault": true,
   "description": "FinBot 金融数据查询与分析插件",
-  "activation": {
-    "triggers": [
-      { "kind": "command", "command": "fin" },
-      { "kind": "capability", "capability": "financial_data" }
-    ]
-  },
   "tools": [
     {
       "name": "marketQuery",
@@ -93,11 +87,5 @@
         "required": ["symbol", "condition", "price"]
       }
     }
-  ],
-  "permissions": ["net.fetch", "fs.read", "fs.write"],
-  "sandbox": "docker",
-  "compatibility": {
-    "minCoreVersion": "2.0.0",
-    "maxCoreVersion": "2.x.x"
-  }
+  ]
 }

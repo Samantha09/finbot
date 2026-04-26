@@ -1,8 +1,9 @@
 agents:
   finbot:
-    harness: anthropic
+    id: finbot
+    default: true
     model: claude-sonnet-4-6
-    apiKey: ${ANTHROPIC_API_KEY}
+    thinkingDefault: off
     maxSteps: 15
 
     persona: |
@@ -20,19 +21,18 @@ agents:
       关注 A 股、港股和加密货币。
       投资目标：长期价值投资 + 定投策略。
 
-    allowedTools:
-      - marketQuery
-      - portfolioAnalysis
-      - riskAssessment
-      - newsFetch
-      - setAlert
-      - memoryBankRead
-      - memoryBankWrite
+    tools:
+      allowed:
+        - marketQuery
+        - portfolioAnalysis
+        - riskAssessment
+        - newsFetch
+        - setAlert
+        - memoryBankRead
+        - memoryBankWrite
+      denied:
+        - shellExec
+        - fileWrite
+        - fileDelete
 
-    deniedTools:
-      - shellExec
-      - fileWrite
-      - fileDelete
-
-    memoryNamespace: "finbot/portfolio"
-    sandboxMode: docker
+    sandbox: docker

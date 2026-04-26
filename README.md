@@ -13,32 +13,31 @@
 
 ## 快速开始
 
-### 1. 安装依赖
+### 前置条件
+
+- Node.js >= 18
+- [OpenClaw](https://github.com/openclaw/openclaw) 已安装（`npm install -g openclaw` 或从源码构建）
+- Alpha Vantage API Key（股票行情）、CoinGecko（加密货币，无需 Key）
+
+### 1. 克隆并安装
 
 ```bash
-# 安装 OpenClaw Gateway（全局或本地）
-npm install -g @openclaw/gateway
-
-# 或克隆 OpenClaw 源码
-# git clone https://github.com/openclaw/openclaw.git
-
-# 安装本项目的 plugin 依赖
-cd plugins/finbot-market
+git clone https://github.com/Samantha09/finbot.git
+cd finbot
 npm install
-cd ../..
 ```
 
 ### 2. 配置环境变量
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填入你的 API Key
+# 编辑 .env，填入你的 API Key 和 Token
 ```
 
-### 3. 启动 Gateway
+### 3. 启动
 
 ```bash
-openclaw start --config-dir ./
+openclaw start
 ```
 
 ### 4. Telegram 配对（可选）
@@ -51,20 +50,22 @@ openclaw start --config-dir ./
 
 ```
 finbot/
-├── agents.yaml                 # Agent 配置（人设、工具白名单、模型）
-├── config.yaml                 # Gateway 配置（通道、Cron、告警）
-├── .env                        # 环境变量（API Key、Token）
-├── .env.example                # 环境变量模板
+├── agents.yaml                     # Agent 配置（人设、工具白名单、模型）
+├── config.yaml                     # Gateway 配置（通道、Cron、插件）
+├── .env                            # 环境变量（API Key、Token）
+├── .env.example                    # 环境变量模板
+├── LICENSE                         # MIT 许可证
 └── plugins/
-    └── finbot-market/          # 金融数据 Plugin
-        ├── manifest.json       # Plugin 声明
+    └── finbot-market/              # 金融数据 Plugin
+        ├── openclaw.plugin.json    # Plugin 声明
         ├── package.json
         └── src/
             └── tools/
                 ├── market-query.ts
                 ├── portfolio-analysis.ts
                 ├── risk-assessment.ts
-                └── news-fetch.ts
+                ├── news-fetch.ts
+                └── set-alert.ts
 ```
 
 ## 使用示例
@@ -80,28 +81,12 @@ FinBot: 📈 投资组合分析 ...
 FinBot: ✅ 已设置价格提醒 ...
 ```
 
-## 配置说明
-
-### Agent 配置（agents.yaml）
-
-- `persona`: FinBot 的人设和投资顾问风格
-- `allowedTools`: 允许使用的工具列表
-- `deniedTools`: 明确禁止的工具（如 shell_exec）
-- `memoryNamespace`: Memory Bank 命名空间
-- `sandboxMode`: 工具执行后端（docker/ssh/openshell）
-
-### Gateway 配置（config.yaml）
-
-- `channels`: 消息通道（Telegram、Email）
-- `cron.jobs`: 定时任务（开盘简报、收盘分析）
-- `alerts.priceAlerts`: 价格提醒检查间隔
-
 ## 二次开发
 
 基于 OpenClaw 的 Plugin-SDK 扩展，所有定制化内容在 `plugins/` 目录下：
 
 - **新增数据源**：在 `plugins/finbot-market/src/tools/` 添加新工具
-- **调整策略**：修改 `agents.yaml` 中的 persona 和 allowedTools
+- **调整策略**：修改 `agents.yaml` 中的 persona 和 tools.allowed
 - **新增通道**：参考 OpenClaw Channel Adapter 文档
 
 **核心原则**：不修改 OpenClaw core 源码，所有扩展通过 Plugin 和配置实现。

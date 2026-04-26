@@ -6,9 +6,6 @@ gateway:
     telegram:
       enabled: true
       botToken: ${TELEGRAM_BOT_TOKEN}
-      allowlist:
-        entries: ["${USER_TELEGRAM_ID}"]
-        allowWhenEmpty: false
 
     email:
       enabled: true
@@ -21,32 +18,7 @@ gateway:
       to: ${NOTIFICATION_EMAIL}
 
   cron:
-    jobs:
-      - id: "market-open-brief"
-        schedule: "0 9 * * 1-5"
-        agentId: "finbot"
-        command: "sendMarketBrief"
-        enabled: true
-        sandboxMode: non-main
-
-      - id: "portfolio-check"
-        schedule: "0 15 * * 1-5"
-        agentId: "finbot"
-        command: "analyzePortfolio"
-        enabled: true
-        sandboxMode: non-main
-
-      - id: "weekly-report"
-        schedule: "0 18 * * 5"
-        agentId: "finbot"
-        command: "sendWeeklyReport"
-        enabled: true
-        sandboxMode: non-main
-
-  alerts:
-    priceAlerts:
-      enabled: true
-      checkInterval: "5m"
+    enabled: true
 
   plugins:
     scanDirs:
