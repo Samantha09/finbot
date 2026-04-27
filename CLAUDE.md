@@ -50,6 +50,23 @@ ls ~/.claude/skills/designing-agent-systems/SKILL.md
 # ln -s /home/san/PycharmProjects/agent-design-handbook/skills/designing-agent-systems ~/.claude/skills/designing-agent-systems
 ```
 
+## 构建与部署
+
+**统一用 docker compose，不要裸机构建：**
+
+```bash
+# 构建并启动（包含 openclaw 基础镜像 + finbot 插件）
+docker compose up -d --build
+
+# 查看日志
+docker compose logs -f
+
+# 停止
+docker compose down
+```
+
+Dockerfile 是两阶段构建：从 `openclaw:latest` 镜像复制类型编译插件，最终镜像基于 openclaw runtime。**不要在宿主机上跑 pnpm install / npm link / symlink**，所有构建在容器内完成。
+
 ## 扩展路径
 
 如需偏离当前架构（如 SaaS 多租户、替换为 LangGraph 编排），必须先阅读 skill 的 `alternative-architectures.md` 并评估成本。FinBot 的设计约束是个人/本地优先，任何偏离都需要明确的场景驱动。

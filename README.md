@@ -4,19 +4,18 @@
 
 ## 功能特性
 
-- 📊 **实时行情**：查询 A股、港股、美股、加密货币行情
-- 📈 **投资组合分析**：集中度、相关性、风险暴露分析
-- ⚠️ **风险评估**：每笔投资建议前自动提示风险等级
-- 🔔 **价格提醒**：止盈止损提醒，支持 Telegram/Email 推送
-- 📰 **财经新闻**：获取关联新闻和财报信息
-- ⏰ **定时简报**：每日开盘前市场概览、收盘后持仓分析
+- **实时行情**：查询 A股、港股、美股、加密货币行情
+- **投资组合分析**：集中度、相关性、风险暴露分析
+- **风险评估**：每笔投资建议前自动提示风险等级
+- **价格提醒**：止盈止损提醒，支持 Telegram/Email 推送
+- **财经新闻**：获取关联新闻和财报信息
 
 ## 快速开始
 
 ### 前置条件
 
 - Node.js >= 18
-- [OpenClaw](https://github.com/openclaw/openclaw) 已安装（`npm install -g openclaw` 或从源码构建）
+- OpenClaw 已安装（从源码构建 `~/PycharmProjects/openclaw/`）
 - Alpha Vantage API Key（股票行情）、CoinGecko（加密货币，无需 Key）
 
 ### 1. 克隆并安装
@@ -25,6 +24,7 @@
 git clone https://github.com/Samantha09/finbot.git
 cd finbot
 npm install
+cd plugins/finbot-market && npm install && npm run build && cd ../..
 ```
 
 ### 2. 配置环境变量
@@ -50,16 +50,20 @@ openclaw start
 
 ```
 finbot/
-├── agents.yaml                     # Agent 配置（人设、工具白名单、模型）
+├── AGENTS.md                       # Agent 人设（workspace bootstrap）
+├── USER.md                         # 用户画像（workspace bootstrap）
+├── agents.yaml                     # Agent 配置（模型、工具白名单）
 ├── config.yaml                     # Gateway 配置（通道、Cron、插件）
 ├── .env                            # 环境变量（API Key、Token）
 ├── .env.example                    # 环境变量模板
 ├── LICENSE                         # MIT 许可证
 └── plugins/
     └── finbot-market/              # 金融数据 Plugin
-        ├── openclaw.plugin.json    # Plugin 声明
+        ├── openclaw.plugin.json    # Plugin 声明（contracts）
         ├── package.json
         └── src/
+            ├── index.ts            # 插件入口（definePluginEntry）
+            ├── types.ts            # 类型定义（openclaw/plugin-sdk）
             └── tools/
                 ├── market-query.ts
                 ├── portfolio-analysis.ts
@@ -72,21 +76,21 @@ finbot/
 
 ```
 用户: 查一下平安银行
-FinBot: 📊 000001.SZ ...
+FinBot: 000001.SZ ...
 
 用户: 分析我的持仓
-FinBot: 📈 投资组合分析 ...
+FinBot: 投资组合分析 ...
 
 用户: 设置提醒 腾讯控股 低于 350
-FinBot: ✅ 已设置价格提醒 ...
+FinBot: 已设置价格提醒 ...
 ```
 
 ## 二次开发
 
 基于 OpenClaw 的 Plugin-SDK 扩展，所有定制化内容在 `plugins/` 目录下：
 
-- **新增数据源**：在 `plugins/finbot-market/src/tools/` 添加新工具
-- **调整策略**：修改 `agents.yaml` 中的 persona 和 tools.allowed
+- **新增数据源**：在 `plugins/finbot-market/src/tools/` 添加新工具，返回 `AnyAgentTool` 对象，并在 `src/index.ts` 中 `api.registerTool()` 注册
+- **调整策略**：修改 `AGENTS.md` 中的人设和规则
 - **新增通道**：参考 OpenClaw Channel Adapter 文档
 
 **核心原则**：不修改 OpenClaw core 源码，所有扩展通过 Plugin 和配置实现。

@@ -2,8 +2,11 @@
   "name": "finbot-market",
   "version": "1.0.0",
   "description": "FinBot 金融数据查询与分析插件",
-  "main": "dist/tools/market-query.js",
-  "types": "dist/tools/market-query.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "files": [
     "dist",
     "openclaw.plugin.json"
@@ -18,11 +21,18 @@
     "openclaw": ">=2026.4.24"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.19.39",
+    "typescript": "^5.9.3"
   },
   "license": "MIT",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./dist/index.js"]
+  },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "keywords": [],
+  "author": "",
+  "type": "commonjs"
 }

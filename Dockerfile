@@ -2,23 +2,22 @@ FROM node:24-bookworm-slim
 
 WORKDIR /app
 
-# 安装 OpenClaw（全局）
+# Install OpenClaw globally
 RUN npm install -g openclaw
 
-# 配置模板
-COPY openclaw.json /app/openclaw.json.template
-
-# FinBot workspace 模板（persona、identity、用户画像）
-COPY workspace/ /app/workspace-template/
-
-# 复制插件
+# Copy plugin source and build
 COPY plugins/finbot-market/package.json plugins/finbot-market/tsconfig.json plugins/finbot-market/openclaw.plugin.json plugins/finbot-market/
 COPY plugins/finbot-market/src/ plugins/finbot-market/src/
 
-# 构建 plugin TypeScript
 RUN cd plugins/finbot-market && npm install && npm run build
 
-# 入口脚本
+# Copy workspace bootstrap files (persona, user profile)
+COPY AGENTS.md USER.md ./
+
+# Config template (copied to volume on first run)
+COPY openclaw.json /app/openclaw.json.template
+
+# Entrypoint: inject plugin path into config on first run
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 

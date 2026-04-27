@@ -1,35 +1,21 @@
-import { ToolContext, ToolResult } from "../types";
+import type { AnyAgentTool } from "../types.js";
+import { toToolResult } from "../types.js";
 
-interface MarketQueryArgs {
-  symbol: string;
-  market?: string;
-}
-
-export async function marketQuery(args: MarketQueryArgs, ctx: ToolContext): Promise<ToolResult> {
-  const { symbol } = args;
-
-  // 自动识别市场
-  const market = args.market || detectMarket(symbol);
-
-  try {
-    let data: any;
-
-    if (market === "crypto") {
-      data = await fetchCryptoPrice(symbol);
-    } else {
-      data = await fetchStockPrice(symbol);
-    }
-
-    return {
-      content: formatQuote(symbol, market, data),
-    };
-  } catch (error) {
-    return {
-      content: `查询 ${symbol} 失败: ${error instanceof Error ? error.message : String(error)}`,
-      isError: true,
-    };
-  }
-}
+const MarketQuerySchema = {
+  type: "object" as const,
+  properties: {
+    symbol: {
+      type: "string" as const,
+      description: "标的代码，如 000001.SZ、00700.HK、AAPL、BTC-USD",
+    },
+    market: {
+      type: "string" as const,
+      enum: ["A股", "港股", "美股", "crypto"],
+      description: "市场类型（可选，自动识别）",
+    },
+  },
+  required: ["symbol"],
+};
 
 function detectMarket(symbol: string): string {
   if (symbol.includes("-USD") || symbol.includes("-USDT")) return "crypto";
@@ -38,7 +24,7 @@ function detectMarket(symbol: string): string {
   return "美股";
 }
 
-async function fetchStockPrice(symbol: string): Promise<any> {
+async function fetchStockPrice(symbol: string) {
   const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
   if (!apiKey) throw new Error("ALPHA_VANTAGE_API_KEY not configured");
 
@@ -60,7 +46,7 @@ async function fetchStockPrice(symbol: string): Promise<any> {
   };
 }
 
-async function fetchCryptoPrice(symbol: string): Promise<any> {
+async function fetchCryptoPrice(symbol: string) {
   const coinId = symbol.toLowerCase().replace("-usd", "").replace("-usdt", "");
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true`;
 
@@ -92,4 +78,32 @@ function formatQuote(symbol: string, market: string, data: any): string {
     ``,
     `⚠️ 不构成投资建议`,
   ].join("\n");
+}
+
+export function createMarketQueryTool(): AnyAgentTool {
+  return {
+    name: "marketQuery",
+    label: "Market Query",
+    description:
+      "查询股票、基金、加密货币的实时行情。支持 A股(000001.SZ)、港股(00700.HK)、美股(AAPL)、加密货币(BTC-USD)",
+    parameters: MarketQuerySchema,
+    execute: async (_toolCallId, params) => {
+      const { symbol, market } = params as { symbol: string; market?: string };
+      const detectedMarket = market || detectMarket(symbol);
+
+      try {
+        const data =
+          detectedMarket === "crypto"
+            ? await fetchCryptoPrice(symbol)
+            : await fetchStockPrice(symbol);
+
+        return toToolResult({ content: formatQuote(symbol, detectedMarket, data) });
+      } catch (error) {
+        return toToolResult({
+          content: `查询 ${symbol} 失败: ${error instanceof Error ? error.message : String(error)}`,
+          isError: true,
+        });
+      }
+    },
+  };
 }

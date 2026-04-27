@@ -27,6 +27,7 @@ gateway:
     enabled: true
 
   plugins:
-    scanDirs:
-      - "./plugins"
-    autoLoad: true
+    enabled: true
+    load:
+      paths:
+        - "./plugins"

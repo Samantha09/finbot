@@ -1,5 +1,10 @@
 node_modules
+dist
 .env
 .git
-*.md
 .claude
+bifrost
+*.md
+!AGENTS.md
+!USER.md
+memory

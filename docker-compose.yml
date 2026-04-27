@@ -1,6 +1,7 @@
 services:
   finbot:
     build: .
+    image: finbot:latest
     container_name: finbot
     env_file: .env
     environment:

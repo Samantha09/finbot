@@ -1,15 +1,18 @@
-// OpenClaw 插件开发的本地类型定义
-// TODO: 接入 OpenClaw 真实 plugin-sdk 后替换为 openclaw/plugin-sdk 的导出
-// 真实类型: OpenClawPluginToolContext, OpenClawPluginToolFactory, OpenClawAgentToolResult
+import type {
+  AnyAgentTool,
+  OpenClawPluginToolContext,
+} from "openclaw/plugin-sdk/plugin-entry";
+import { jsonResult } from "openclaw/plugin-sdk/core";
 
-export interface ToolContext {
-  logger: {
-    info: (msg: string) => void;
-    error: (msg: string) => void;
-  };
-}
+export type ToolContext = OpenClawPluginToolContext;
+export type { AnyAgentTool };
 
-export interface ToolResult {
+export interface TextResult {
   content: string;
   isError?: boolean;
+}
+
+export function toToolResult(result: TextResult) {
+  const text = result.isError ? `❌ ${result.content}` : result.content;
+  return jsonResult({ text, isError: result.isError ?? false });
 }
