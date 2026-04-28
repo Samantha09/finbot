@@ -14,7 +14,8 @@
       "riskAssessment",
       "newsFetch",
       "setAlert",
-      "technicalAnalysis"
+      "technicalAnalysis",
+      "fundamentalAnalysis"
     ]
   }
 }

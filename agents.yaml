@@ -13,6 +13,7 @@ agents:
         - newsFetch
         - setAlert
         - technicalAnalysis
+        - fundamentalAnalysis
         - memoryBankRead
         - memoryBankWrite
       deny:
