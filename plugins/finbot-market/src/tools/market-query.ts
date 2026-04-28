@@ -24,7 +24,62 @@ export function detectMarket(symbol: string): string {
   return "美股";
 }
 
-async function fetchStockPrice(symbol: string) {
+function toEastMoneySecid(symbol: string, market: string): string {
+  if (market === "A股") {
+    const m = symbol.match(/(\d{6})\.(SZ|SH|BJ)/);
+    if (!m) throw new Error(`无效 A 股代码: ${symbol}`);
+    const [, code, exchange] = m;
+    const marketId = exchange === "SH" ? 1 : 0;
+    return `${marketId}.${code}`;
+  }
+  if (market === "港股") {
+    const code = symbol.replace(".HK", "");
+    return `116.${code}`;
+  }
+  throw new Error(`东方财富不支持 ${market} 市场`);
+}
+
+interface NormalizedQuote {
+  price: number;
+  change: number;
+  changePercent: string;
+  volume: number;
+  latestTradingDay: string;
+}
+
+async function fetchEastMoneyQuote(
+  symbol: string,
+  market: string,
+): Promise<NormalizedQuote> {
+  const secid = toEastMoneySecid(symbol, market);
+  const fields = "f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170";
+  const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=${fields}`;
+
+  const response = await fetch(url);
+  const json = await response.json();
+
+  if (json.rc !== 0 || !json.data) {
+    throw new Error("东方财富接口返回异常");
+  }
+
+  const d = json.data;
+  const divisor = market === "港股" ? 1000 : 100;
+
+  const price = d.f43 / divisor;
+  const prevClose = d.f60 / divisor;
+  const change = +(price - prevClose).toFixed(divisor === 1000 ? 3 : 2);
+  const changePercent = (d.f170 / 100).toFixed(2) + "%";
+
+  return {
+    price,
+    change,
+    changePercent,
+    volume: d.f47,
+    latestTradingDay: new Date().toISOString().split("T")[0],
+  };
+}
+
+async function fetchAlphaVantageQuote(symbol: string): Promise<NormalizedQuote> {
   const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
   if (!apiKey) throw new Error("ALPHA_VANTAGE_API_KEY not configured");
 
@@ -46,7 +101,7 @@ async function fetchStockPrice(symbol: string) {
   };
 }
 
-async function fetchCryptoPrice(symbol: string) {
+async function fetchCryptoPrice(symbol: string): Promise<NormalizedQuote> {
   const coinId = symbol.toLowerCase().replace("-usd", "").replace("-usdt", "");
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true`;
 
@@ -58,13 +113,14 @@ async function fetchCryptoPrice(symbol: string) {
 
   return {
     price: coinData.usd,
+    change: 0,
     changePercent: `${coinData.usd_24h_change?.toFixed(2)}%`,
     volume: coinData.usd_24h_vol,
     latestTradingDay: new Date().toISOString().split("T")[0],
   };
 }
 
-function formatQuote(symbol: string, market: string, data: any): string {
+function formatQuote(symbol: string, market: string, data: NormalizedQuote): string {
   const changeSign = data.change >= 0 ? "+" : "";
   const changeEmoji = data.change >= 0 ? "🟢" : "🔴";
 
@@ -92,10 +148,15 @@ export function createMarketQueryTool(): AnyAgentTool {
       const detectedMarket = market || detectMarket(symbol);
 
       try {
-        const data =
-          detectedMarket === "crypto"
-            ? await fetchCryptoPrice(symbol)
-            : await fetchStockPrice(symbol);
+        let data: NormalizedQuote;
+
+        if (detectedMarket === "crypto") {
+          data = await fetchCryptoPrice(symbol);
+        } else if (detectedMarket === "A股" || detectedMarket === "港股") {
+          data = await fetchEastMoneyQuote(symbol, detectedMarket);
+        } else {
+          data = await fetchAlphaVantageQuote(symbol);
+        }
 
         return toToolResult({ content: formatQuote(symbol, detectedMarket, data) });
       } catch (error) {

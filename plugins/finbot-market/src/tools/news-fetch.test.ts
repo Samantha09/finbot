@@ -13,20 +13,29 @@ describe("newsFetch tool", () => {
     expect(tool.parameters).toBeDefined();
   });
 
-  it("返回新闻列表", async () => {
-    const result = await tool.execute("tc1", { symbol: "AAPL", limit: 2 });
+  it("A 股走东方财富公告 API", async () => {
+    const result = await tool.execute("tc1", { symbol: "600519.SH", limit: 3 });
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
-    expect(parsed.text).toContain("AAPL");
+    expect(parsed.text).toContain("600519.SH");
     expect(parsed.text).toContain("新闻");
     expect(parsed.text).toContain("不构成投资建议");
     expect(parsed.isError).toBeFalsy();
   });
 
-  it("limit 参数控制返回数量", async () => {
-    const result = await tool.execute("tc2", { symbol: "TSLA", limit: 1 });
+  it("港股走东方财富公告 API", async () => {
+    const result = await tool.execute("tc2", { symbol: "00700.HK", limit: 2 });
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
-    expect(parsed.text).toContain("1 条");
+    expect(parsed.text).toContain("00700.HK");
+    expect(parsed.isError).toBeFalsy();
+  });
+
+  it("美股缺少 API Key 时提示配置", async () => {
+    delete process.env.ALPHA_VANTAGE_API_KEY;
+    const result = await tool.execute("tc3", { symbol: "AAPL", limit: 3 });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.text).toContain("ALPHA_VANTAGE_API_KEY");
   });
 });
