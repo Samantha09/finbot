@@ -25,7 +25,7 @@ const TechnicalAnalysisSchema = {
   required: ["symbol"],
 };
 
-interface Kline {
+export interface Kline {
   date: string;
   open: number;
   close: number;
@@ -34,7 +34,7 @@ interface Kline {
   volume: number;
 }
 
-function parseKline(line: string): Kline {
+export function parseKline(line: string): Kline {
   const [date, open, close, high, low, volume] = line.split(",");
   return {
     date,
@@ -139,7 +139,7 @@ export function calcKDJ(klines: Kline[], period: number = 9): { k: number; d: nu
   };
 }
 
-async function fetchKlines(symbol: string, count: number, klt: string): Promise<Kline[]> {
+export async function fetchKlines(symbol: string, count: number, klt: string): Promise<Kline[]> {
   let secid: string;
 
   const hk = symbol.match(/^(\d{5})\.HK$/);

@@ -15,7 +15,8 @@
       "newsFetch",
       "setAlert",
       "technicalAnalysis",
-      "fundamentalAnalysis"
+      "fundamentalAnalysis",
+      "strategyBacktest"
     ]
   }
 }

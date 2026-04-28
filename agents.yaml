@@ -14,6 +14,7 @@ agents:
         - setAlert
         - technicalAnalysis
         - fundamentalAnalysis
+        - strategyBacktest
         - memoryBankRead
         - memoryBankWrite
       deny:
