@@ -12,6 +12,7 @@ agents:
         - riskAssessment
         - newsFetch
         - setAlert
+        - technicalAnalysis
         - memoryBankRead
         - memoryBankWrite
       deny:

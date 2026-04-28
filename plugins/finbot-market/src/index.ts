@@ -4,6 +4,7 @@ import { createPortfolioAnalysisTool } from "./tools/portfolio-analysis.js";
 import { createRiskAssessmentTool } from "./tools/risk-assessment.js";
 import { createNewsFetchTool } from "./tools/news-fetch.js";
 import { createSetAlertTool } from "./tools/set-alert.js";
+import { createTechnicalAnalysisTool } from "./tools/technical-analysis.js";
 
 export default definePluginEntry({
   id: "finbot-market",
@@ -15,5 +16,6 @@ export default definePluginEntry({
     api.registerTool(createRiskAssessmentTool());
     api.registerTool(createNewsFetchTool());
     api.registerTool(createSetAlertTool());
+    api.registerTool(createTechnicalAnalysisTool());
   },
 });

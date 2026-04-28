@@ -13,7 +13,8 @@
       "portfolioAnalysis",
       "riskAssessment",
       "newsFetch",
-      "setAlert"
+      "setAlert",
+      "technicalAnalysis"
     ]
   }
 }
