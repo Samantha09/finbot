@@ -19,7 +19,7 @@ interface RiskProfile {
   factors: string[];
 }
 
-function assessRisk(symbol: string, positionSize: number): RiskProfile {
+export function assessRisk(symbol: string, positionSize: number): RiskProfile {
   const factors: string[] = [];
   let score = 5;
 
@@ -55,7 +55,7 @@ function assessRisk(symbol: string, positionSize: number): RiskProfile {
   return { level, score, factors };
 }
 
-function suggestMaxPosition(riskScore: number): number {
+export function suggestMaxPosition(riskScore: number): number {
   if (riskScore >= 8) return 5;
   if (riskScore >= 6) return 10;
   if (riskScore >= 4) return 20;

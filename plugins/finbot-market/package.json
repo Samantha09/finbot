@@ -13,6 +13,8 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "watch": "tsc --watch",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"
@@ -22,10 +24,11 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.1"
   },
   "license": "MIT",
-  "type": "module",
+  "type": "commonjs",
   "openclaw": {
     "extensions": ["./dist/index.js"]
   },
@@ -33,6 +36,5 @@
     "access": "public"
   },
   "keywords": [],
-  "author": "",
-  "type": "commonjs"
+  "author": ""
 }

@@ -17,7 +17,7 @@ const MarketQuerySchema = {
   required: ["symbol"],
 };
 
-function detectMarket(symbol: string): string {
+export function detectMarket(symbol: string): string {
   if (symbol.includes("-USD") || symbol.includes("-USDT")) return "crypto";
   if (symbol.endsWith(".HK")) return "港股";
   if (/\d{6}\.(SZ|SH|BJ)/.test(symbol)) return "A股";

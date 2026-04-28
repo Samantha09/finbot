@@ -9,7 +9,7 @@ RUN npm install -g openclaw
 COPY plugins/finbot-market/package.json plugins/finbot-market/tsconfig.json plugins/finbot-market/openclaw.plugin.json plugins/finbot-market/
 COPY plugins/finbot-market/src/ plugins/finbot-market/src/
 
-RUN cd plugins/finbot-market && npm install && npm run build
+RUN cd plugins/finbot-market && npm install && npm run build && npm test
 
 # Copy workspace bootstrap files (persona, user profile)
 COPY AGENTS.md USER.md ./
