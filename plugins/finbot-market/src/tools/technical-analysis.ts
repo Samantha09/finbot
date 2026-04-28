@@ -140,12 +140,17 @@ export function calcKDJ(klines: Kline[], period: number = 9): { k: number; d: nu
 }
 
 async function fetchKlines(symbol: string, count: number, klt: string): Promise<Kline[]> {
-  const m = symbol.match(/(\d{6})\.(SZ|SH|BJ)/);
-  if (!m) throw new Error("技术分析目前仅支持 A 股代码格式（如 600519.SH）");
+  let secid: string;
 
-  const [, code, exchange] = m;
-  const marketId = exchange === "SH" ? 1 : 0;
-  const secid = `${marketId}.${code}`;
+  const hk = symbol.match(/^(\d{5})\.HK$/);
+  if (hk) {
+    secid = `116.${hk[1]}`;
+  } else {
+    const m = symbol.match(/(\d{6})\.(SZ|SH|BJ)/);
+    if (!m) throw new Error("技术分析支持 A 股（600519.SH）和港股（00700.HK）");
+    const [, code, exchange] = m;
+    secid = `${exchange === "SH" ? 1 : 0}.${code}`;
+  }
 
   const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=${klt}&fqt=1&lmt=${count}&end=20500101`;
 
@@ -174,7 +179,7 @@ export function createTechnicalAnalysisTool(): AnyAgentTool {
   return {
     name: "technicalAnalysis",
     label: "Technical Analysis",
-    description: "计算技术分析指标：MA、RSI、MACD、布林带、KDJ。仅支持 A 股",
+    description: "计算技术分析指标：MA、RSI、MACD、布林带、KDJ。支持 A 股和港股",
     parameters: TechnicalAnalysisSchema,
     execute: async (_toolCallId, params) => {
       const { symbol, indicators, period = "daily" } = params as {

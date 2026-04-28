@@ -101,13 +101,13 @@ describe("technicalAnalysis tool", () => {
     expect(tool.parameters).toBeDefined();
   });
 
-  it("非 A 股代码报错", async () => {
+  it("不支持的代码格式报错", async () => {
     const tool = createTechnicalAnalysisTool();
     const result = await tool.execute("tc1", { symbol: "AAPL" });
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
     expect(parsed.isError).toBe(true);
-    expect(parsed.text).toContain("A 股");
+    expect(parsed.text).toContain("支持");
   });
 
   it("A 股查询成功（真实 API）", async () => {
@@ -119,6 +119,16 @@ describe("technicalAnalysis tool", () => {
     expect(parsed.text).toContain("MA");
     expect(parsed.text).toContain("RSI");
     expect(parsed.text).toContain("不构成投资建议");
+    expect(parsed.isError).toBeFalsy();
+  }, 15000);
+
+  it("港股查询成功（真实 API）", async () => {
+    const tool = createTechnicalAnalysisTool();
+    const result = await tool.execute("tc4", { symbol: "00700.HK" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.text).toContain("00700.HK");
+    expect(parsed.text).toContain("MA");
     expect(parsed.isError).toBeFalsy();
   }, 15000);
 });
