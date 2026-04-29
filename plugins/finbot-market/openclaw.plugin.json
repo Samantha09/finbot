@@ -17,7 +17,8 @@
       "technicalAnalysis",
       "fundamentalAnalysis",
       "strategyBacktest",
-      "checkAlerts"
+      "checkAlerts",
+      "etfAnalysis"
     ]
   }
 }
