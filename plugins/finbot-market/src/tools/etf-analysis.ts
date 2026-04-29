@@ -55,6 +55,80 @@ export function formatBillion(val: number): string {
   return val.toFixed(1) + " 亿";
 }
 
+async function fetchEtfQuote(secid: string): Promise<EtfQuoteData> {
+  const fields = "f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f135";
+  const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=${fields}`;
+
+  const response = await fetch(url);
+  const json = await response.json();
+
+  if (json.rc !== 0 || !json.data) {
+    throw new Error("行情数据获取失败");
+  }
+
+  const d = json.data;
+  const divisor = 100;
+
+  return {
+    price: d.f43 / divisor,
+    changePercent: (d.f170 / 100).toFixed(2) + "%",
+    volume: d.f47,
+    iopv: d.f135 ? d.f135 / 1000 : 0,
+  };
+}
+
+async function fetchEtfInfo(secid: string): Promise<EtfInfoData> {
+  const fields = "f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f135,f191,f192,f193";
+  const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=${fields}`;
+
+  const response = await fetch(url);
+  const json = await response.json();
+
+  if (json.rc !== 0 || !json.data) {
+    throw new Error("基本信息获取失败");
+  }
+
+  const d = json.data;
+  return {
+    fundSize: d.f191 ? d.f191 / 1e8 : 0,
+    managementFee: d.f192 ? (d.f192 / 100).toFixed(2) + "%" : "N/A",
+    trackingIndex: d.f193 ? String(d.f193) : "N/A",
+    establishDate: "N/A",
+  };
+}
+
+async function fetchEtfHoldings(code: string): Promise<EtfHolding[]> {
+  const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_FUND_PORTFOLIO_STOCK&columns=ALL&filter=(FUND_CODE="${code}")&pageNumber=1&pageSize=10`;
+
+  const response = await fetch(url);
+  const json = await response.json();
+
+  const rows: Array<Record<string, unknown>> = json.result?.data ?? [];
+  if (rows.length === 0) throw new Error("持仓数据获取失败");
+
+  return rows.slice(0, 10).map((row) => ({
+    name: String(row.SECURITY_NAME_ABBR ?? ""),
+    ratio: Number(row.RATIO ?? 0),
+  }));
+}
+
+async function fetchEtfMoneyFlow(code: string): Promise<EtfMoneyFlowData> {
+  const url = `https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_ETF_MONEYFLOW&columns=ALL&filter=(SECURITY_CODE="${code}")&pageNumber=1&pageSize=1`;
+
+  const response = await fetch(url);
+  const json = await response.json();
+
+  const rows: Array<Record<string, unknown>> = json.result?.data ?? [];
+  if (rows.length === 0) throw new Error("资金流向数据获取失败");
+
+  const row = rows[0];
+  return {
+    dayNetInflow: Number(row.NET_INFLOW ?? 0) / 1e8,
+    week5NetInflow: Number(row.NET_INFLOW_5DAY ?? row.NET_INFLOW ?? 0) / 1e8,
+    week10NetInflow: Number(row.NET_INFLOW_10DAY ?? row.NET_INFLOW ?? 0) / 1e8,
+  };
+}
+
 // fetch 函数和 createEtfAnalysisTool 在后续 Task 中实现
 export function createEtfAnalysisTool(): AnyAgentTool {
   return {
