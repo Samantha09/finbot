@@ -39,11 +39,28 @@ interface EtfMoneyFlowData {
 }
 
 export function parseEtfSymbol(symbol: string): { code: string; secid: string } {
-  const m = symbol.match(/(\d{6})\.(SZ|SH|BJ)/);
-  if (!m) throw new Error("ETF 分析仅支持 A 股格式代码（如 510050.SH）");
-  const [, code, exchange] = m;
-  const marketId = exchange === "SH" ? 1 : 0;
-  return { code, secid: `${marketId}.${code}` };
+  const explicit = symbol.match(/(\d{6})\.(SZ|SH|BJ)/);
+  if (explicit) {
+    const [, code, exchange] = explicit;
+    const marketId = exchange === "SH" ? 1 : 0;
+    return { code, secid: `${marketId}.${code}` };
+  }
+
+  const bare = symbol.match(/^(\d{6})$/);
+  if (bare) {
+    const code = bare[1];
+    const prefix = code.slice(0, 2);
+    const shPrefixes = ["50", "51", "52", "56", "58", "60", "68"];
+    const szPrefixes = ["15", "16", "17", "18"];
+    if (shPrefixes.includes(prefix)) {
+      return { code, secid: `1.${code}` };
+    }
+    if (szPrefixes.includes(prefix)) {
+      return { code, secid: `0.${code}` };
+    }
+  }
+
+  throw new Error("ETF 分析仅支持 A 股格式代码（如 510050.SH）");
 }
 
 export function calcPremium(price: number, iopv: number): number {

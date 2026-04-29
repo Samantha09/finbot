@@ -6,10 +6,10 @@ services:
     env_file: .env
     environment:
       TZ: ${TZ:-Asia/Shanghai}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-finbot-local-token}
     volumes:
       - finbot-data:/root/.openclaw
-    ports:
-      - "${GATEWAY_PORT:-18789}:18789"
+    network_mode: host
     restart: unless-stopped
 
 volumes:

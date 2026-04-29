@@ -28,6 +28,14 @@ describe("parseEtfSymbol", () => {
     expect(parseEtfSymbol("159915.SZ")).toEqual({ code: "159915", secid: "0.159915" });
   });
 
+  it("纯6位上海 ETF 自动补 SH", () => {
+    expect(parseEtfSymbol("513050")).toEqual({ code: "513050", secid: "1.513050" });
+  });
+
+  it("纯6位深圳 ETF 自动补 SZ", () => {
+    expect(parseEtfSymbol("159915")).toEqual({ code: "159915", secid: "0.159915" });
+  });
+
   it("非法代码报错", () => {
     expect(() => parseEtfSymbol("AAPL")).toThrow("ETF 分析仅支持");
   });
