@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { calcMA, calcRSI, calcMACD, calcBOLL, calcKDJ, createTechnicalAnalysisTool } from "./technical-analysis.js";
 
+const skipRealApi = process.env.SKIP_REAL_API === "1" || process.env.CI === "true";
+
 describe("calcMA", () => {
   const closes = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
@@ -110,7 +112,7 @@ describe("technicalAnalysis tool", () => {
     expect(parsed.text).toContain("支持");
   });
 
-  it("A 股查询成功（真实 API）", async () => {
+  it.skipIf(skipRealApi)("A 股查询成功（真实 API）", async () => {
     const tool = createTechnicalAnalysisTool();
     const result = await tool.execute("tc2", { symbol: "600519.SH" });
     const text = (result as any).content[0].text;
@@ -122,7 +124,7 @@ describe("technicalAnalysis tool", () => {
     expect(parsed.isError).toBeFalsy();
   }, 15000);
 
-  it("港股查询成功（真实 API）", async () => {
+  it.skipIf(skipRealApi)("港股查询成功（真实 API）", async () => {
     const tool = createTechnicalAnalysisTool();
     const result = await tool.execute("tc4", { symbol: "00700.HK" });
     const text = (result as any).content[0].text;
@@ -132,7 +134,7 @@ describe("technicalAnalysis tool", () => {
     expect(parsed.isError).toBeFalsy();
   }, 15000);
 
-  it("港股 4 位代码补零到 5 位（真实 API）", async () => {
+  it.skipIf(skipRealApi)("港股 4 位代码补零到 5 位（真实 API）", async () => {
     const tool = createTechnicalAnalysisTool();
     const result = await tool.execute("tc5", { symbol: "0001.HK" });
     const text = (result as any).content[0].text;

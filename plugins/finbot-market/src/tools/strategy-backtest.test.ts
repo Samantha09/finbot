@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { createStrategyBacktestTool } from "./strategy-backtest.js";
 
+const skipRealApi = process.env.SKIP_REAL_API === "1" || process.env.CI === "true";
+
 describe("strategyBacktest tool", () => {
   it("tool 元数据正确", () => {
     const tool = createStrategyBacktestTool();
@@ -17,7 +19,7 @@ describe("strategyBacktest tool", () => {
     expect(parsed.text).toContain("支持");
   });
 
-  it("A 股 MA 交叉回测成功", async () => {
+  it.skipIf(skipRealApi)("A 股 MA 交叉回测成功", async () => {
     const tool = createStrategyBacktestTool();
     const result = await tool.execute("tc2", { symbol: "600519.SH", strategy: "MA_CROSSOVER", shortPeriod: 5, longPeriod: 20 });
     const text = (result as any).content[0].text;
@@ -29,7 +31,7 @@ describe("strategyBacktest tool", () => {
     expect(parsed.isError).toBeFalsy();
   }, 15000);
 
-  it("港股 RSI 回测成功", async () => {
+  it.skipIf(skipRealApi)("港股 RSI 回测成功", async () => {
     const tool = createStrategyBacktestTool();
     const result = await tool.execute("tc3", { symbol: "00700.HK", strategy: "RSI_THRESHOLD" });
     const text = (result as any).content[0].text;
