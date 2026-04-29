@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { calcPremium, parseEtfSymbol, createEtfAnalysisTool } from "./etf-analysis.js";
 
 describe("calcPremium", () => {
@@ -47,5 +47,84 @@ describe("etfAnalysis tool", () => {
     const parsed = JSON.parse(text);
     expect(parsed.isError).toBe(true);
     expect(parsed.text).toContain("ETF 分析");
+  });
+});
+
+describe("etfAnalysis tool mock tests", () => {
+  it("mock 测试返回完整分析", async () => {
+    const tool = createEtfAnalysisTool();
+
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("push2.eastmoney.com")) {
+        return {
+          json: () => Promise.resolve({
+            rc: 0,
+            data: {
+              f43: 26500, f170: 123, f47: 152000000, f135: 26480,
+              f191: 120050000000, f192: 50, f193: "上证50指数",
+            },
+          }),
+        };
+      }
+      if (url.includes("RPT_FUND_PORTFOLIO_STOCK")) {
+        return {
+          json: () => Promise.resolve({
+            result: {
+              data: [
+                { SECURITY_NAME_ABBR: "贵州茅台", RATIO: 15.23 },
+                { SECURITY_NAME_ABBR: "中国平安", RATIO: 8.45 },
+              ],
+            },
+          }),
+        };
+      }
+      if (url.includes("RPT_ETF_MONEYFLOW")) {
+        return {
+          json: () => Promise.resolve({
+            result: {
+              data: [
+                { NET_INFLOW: 230000000, NET_INFLOW_5DAY: 870000000, NET_INFLOW_10DAY: -120000000 },
+              ],
+            },
+          }),
+        };
+      }
+      return { json: () => Promise.resolve({}) };
+    }));
+
+    const result = await tool.execute("tc2", { symbol: "510050.SH" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+
+    expect(parsed.isError).toBeFalsy();
+    expect(parsed.text).toContain("510050.SH");
+    expect(parsed.text).toContain("贵州茅台");
+    expect(parsed.text).toContain("折溢价");
+    expect(parsed.text).toContain("资金流向");
+    expect(parsed.text).toContain("不构成投资建议");
+  });
+
+  it("mock 测试部分接口失败", async () => {
+    const tool = createEtfAnalysisTool();
+
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("push2.eastmoney.com")) {
+        return { json: () => Promise.resolve({ rc: 0, data: { f43: 26500, f170: 0, f47: 0, f135: 26480 } }) };
+      }
+      if (url.includes("RPT_FUND_PORTFOLIO_STOCK")) {
+        return { json: () => Promise.resolve({ result: { data: [] } }) };
+      }
+      if (url.includes("RPT_ETF_MONEYFLOW")) {
+        throw new Error("timeout");
+      }
+      return { json: () => Promise.resolve({}) };
+    }));
+
+    const result = await tool.execute("tc3", { symbol: "510050.SH" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+
+    expect(parsed.isError).toBeFalsy();
+    expect(parsed.text).toContain("510050.SH");
   });
 });

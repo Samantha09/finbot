@@ -129,7 +129,52 @@ async function fetchEtfMoneyFlow(code: string): Promise<EtfMoneyFlowData> {
   };
 }
 
-// fetch 函数和 createEtfAnalysisTool 在后续 Task 中实现
+function formatEtfOutput(
+  symbol: string,
+  quote: EtfQuoteData,
+  info: EtfInfoData,
+  holdings: EtfHolding[],
+  moneyFlow: EtfMoneyFlowData,
+): string {
+  const premium = calcPremium(quote.price, quote.iopv);
+  const premiumText = premium > 0 ? `溢价 ${premium}%` : premium < 0 ? `折价 ${Math.abs(premium)}%` : "平价";
+  const changeSign = quote.changePercent.startsWith("-") ? "" : "+";
+  const changeEmoji = quote.changePercent.startsWith("-") ? "🔴" : "🟢";
+
+  const lines: string[] = [
+    `📊 ${symbol} ETF 综合分析`,
+    "",
+    "**基本信息**:",
+    `  基金规模: ${formatBillion(info.fundSize)}`,
+    `  管理费率: ${info.managementFee}`,
+    `  跟踪指数: ${info.trackingIndex}`,
+    `  成立日期: ${info.establishDate}`,
+    "",
+    "**行情与折溢价**:",
+    `  最新价格: ${quote.price.toFixed(3)}  (${changeEmoji} ${changeSign}${quote.changePercent})`,
+    `  IOPV净值: ${quote.iopv.toFixed(4)}`,
+    `  折溢价率: ${premiumText}`,
+    `  成交量: ${quote.volume?.toLocaleString() ?? "N/A"}`,
+    "",
+    "**资金流向**:",
+    `  当日主力净流入: ${moneyFlow.dayNetInflow >= 0 ? "+" : ""}${formatBillion(moneyFlow.dayNetInflow)}`,
+    `  近5日主力净流入: ${moneyFlow.week5NetInflow >= 0 ? "+" : ""}${formatBillion(moneyFlow.week5NetInflow)}`,
+    `  近10日主力净流入: ${moneyFlow.week10NetInflow >= 0 ? "+" : ""}${formatBillion(moneyFlow.week10NetInflow)}`,
+    "",
+  ];
+
+  if (holdings.length > 0) {
+    lines.push("**前十大持仓**:", "| 股票 | 占比 |", "|------|------|");
+    for (const h of holdings) {
+      lines.push(`| ${h.name} | ${h.ratio}% |`);
+    }
+    lines.push("");
+  }
+
+  lines.push("⚠️ 不构成投资建议");
+  return lines.join("\n");
+}
+
 export function createEtfAnalysisTool(): AnyAgentTool {
   return {
     name: "etfAnalysis",
@@ -138,12 +183,31 @@ export function createEtfAnalysisTool(): AnyAgentTool {
     parameters: EtfAnalysisSchema,
     execute: async (_toolCallId, params) => {
       const { symbol } = params as { symbol: string };
+
       try {
-        parseEtfSymbol(symbol);
-        return toToolResult({ content: `分析 ${symbol}`, isError: false });
+        const { secid, code } = parseEtfSymbol(symbol);
+
+        const [quote, info, holdings, moneyFlow] = await Promise.all([
+          fetchEtfQuote(secid).catch(() => null),
+          fetchEtfInfo(secid).catch(() => null),
+          fetchEtfHoldings(code).catch(() => []),
+          fetchEtfMoneyFlow(code).catch(() => ({ dayNetInflow: 0, week5NetInflow: 0, week10NetInflow: 0 })),
+        ]);
+
+        if (!quote && !info && holdings.length === 0) {
+          return toToolResult({ content: "未能获取到任何数据，请检查代码是否正确", isError: true });
+        }
+
+        const safeQuote = quote ?? { price: 0, changePercent: "0%", volume: 0, iopv: 0 };
+        const safeInfo = info ?? { fundSize: 0, managementFee: "N/A", trackingIndex: "N/A", establishDate: "N/A" };
+        const safeHoldings = holdings;
+        const safeMoneyFlow = moneyFlow ?? { dayNetInflow: 0, week5NetInflow: 0, week10NetInflow: 0 };
+
+        const output = formatEtfOutput(symbol, safeQuote, safeInfo, safeHoldings, safeMoneyFlow);
+        return toToolResult({ content: output });
       } catch (error) {
         return toToolResult({
-          content: error instanceof Error ? error.message : String(error),
+          content: `ETF 分析失败: ${error instanceof Error ? error.message : String(error)}`,
           isError: true,
         });
       }
