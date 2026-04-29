@@ -108,6 +108,30 @@ describe("marketQuery tool", () => {
     expect(fetchUrl).toContain("secid=116.00700");
   });
 
+  it("港股 4 位代码补零到 5 位", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: () =>
+          Promise.resolve(
+            mockEastMoneyResponse({
+              f43: 65950,
+              f60: 65800,
+              f170: 23,
+            }),
+          ),
+      }),
+    );
+
+    const result = await tool.execute("tc2b", { symbol: "0001.HK" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBeFalsy();
+
+    const fetchUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(fetchUrl).toContain("secid=116.00001");
+  });
+
   it("美股查询走 Alpha Vantage", async () => {
     process.env.ALPHA_VANTAGE_API_KEY = "test-key";
     vi.stubGlobal(

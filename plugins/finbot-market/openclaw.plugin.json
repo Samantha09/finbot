@@ -16,7 +16,8 @@
       "setAlert",
       "technicalAnalysis",
       "fundamentalAnalysis",
-      "strategyBacktest"
+      "strategyBacktest",
+      "checkAlerts"
     ]
   }
 }

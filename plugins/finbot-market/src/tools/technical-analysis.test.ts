@@ -131,4 +131,13 @@ describe("technicalAnalysis tool", () => {
     expect(parsed.text).toContain("MA");
     expect(parsed.isError).toBeFalsy();
   }, 15000);
+
+  it("港股 4 位代码补零到 5 位（真实 API）", async () => {
+    const tool = createTechnicalAnalysisTool();
+    const result = await tool.execute("tc5", { symbol: "0001.HK" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.text).toContain("0001.HK");
+    expect(parsed.isError).toBeFalsy();
+  }, 15000);
 });

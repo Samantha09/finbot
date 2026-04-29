@@ -34,7 +34,10 @@ async function fetchEastMoneyAnnouncements(
 
   const url = `https://np-anotice-stock.eastmoney.com/api/security/ann?page_size=${limit}&page_index=1&ann_type=A&stock_list=${info.code}&f_node=0&s_node=0`;
 
-  const response = await fetch(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  const response = await fetch(url, { signal: controller.signal });
+  clearTimeout(timeout);
   const json = await response.json();
 
   const list: Array<{
@@ -61,7 +64,10 @@ async function fetchAlphaVantageNews(
   if (!apiKey) return [];
 
   const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=${encodeURIComponent(symbol)}&limit=${limit}&apikey=${apiKey}`;
-  const response = await fetch(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  const response = await fetch(url, { signal: controller.signal });
+  clearTimeout(timeout);
   const json = await response.json();
 
   const feed: Array<{

@@ -33,18 +33,32 @@ function toEastMoneySecid(symbol: string, market: string): string {
     return `${marketId}.${code}`;
   }
   if (market === "港股") {
-    const code = symbol.replace(".HK", "");
+    const code = symbol.replace(".HK", "").padStart(5, "0");
     return `116.${code}`;
   }
   throw new Error(`东方财富不支持 ${market} 市场`);
 }
 
-interface NormalizedQuote {
+export interface NormalizedQuote {
   price: number;
   change: number;
   changePercent: string;
   volume: number;
   latestTradingDay: string;
+}
+
+export async function fetchQuote(
+  symbol: string,
+  market?: string,
+): Promise<NormalizedQuote> {
+  const detectedMarket = market || detectMarket(symbol);
+  if (detectedMarket === "crypto") {
+    return fetchCryptoPrice(symbol);
+  } else if (detectedMarket === "A股" || detectedMarket === "港股") {
+    return fetchEastMoneyQuote(symbol, detectedMarket);
+  } else {
+    return fetchAlphaVantageQuote(symbol);
+  }
 }
 
 async function fetchEastMoneyQuote(
@@ -148,16 +162,7 @@ export function createMarketQueryTool(): AnyAgentTool {
       const detectedMarket = market || detectMarket(symbol);
 
       try {
-        let data: NormalizedQuote;
-
-        if (detectedMarket === "crypto") {
-          data = await fetchCryptoPrice(symbol);
-        } else if (detectedMarket === "A股" || detectedMarket === "港股") {
-          data = await fetchEastMoneyQuote(symbol, detectedMarket);
-        } else {
-          data = await fetchAlphaVantageQuote(symbol);
-        }
-
+        const data = await fetchQuote(symbol, market);
         return toToolResult({ content: formatQuote(symbol, detectedMarket, data) });
       } catch (error) {
         return toToolResult({

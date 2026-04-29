@@ -142,9 +142,9 @@ export function calcKDJ(klines: Kline[], period: number = 9): { k: number; d: nu
 export async function fetchKlines(symbol: string, count: number, klt: string): Promise<Kline[]> {
   let secid: string;
 
-  const hk = symbol.match(/^(\d{5})\.HK$/);
+  const hk = symbol.match(/^(\d{1,5})\.HK$/);
   if (hk) {
-    secid = `116.${hk[1]}`;
+    secid = `116.${hk[1].padStart(5, "0")}`;
   } else {
     const m = symbol.match(/(\d{6})\.(SZ|SH|BJ)/);
     if (!m) throw new Error("技术分析支持 A 股（600519.SH）和港股（00700.HK）");

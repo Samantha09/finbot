@@ -55,7 +55,7 @@ export function createSetAlertTool(): AnyAgentTool {
   return {
     name: "setAlert",
     label: "Set Alert",
-    description: "设置价格提醒（止盈/止损）",
+    description: "设置价格提醒（止盈/止损）。提醒需配合 checkAlerts 工具或 OpenClaw cron/heartbeat 进行轮询触发。",
     parameters: SetAlertSchema,
     execute: async (_toolCallId, params) => {
       const { symbol, condition, price, message } = params as {
