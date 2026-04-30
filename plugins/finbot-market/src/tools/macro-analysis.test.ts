@@ -15,6 +15,7 @@ describe("parseIndicatorRows", () => {
     ];
     const result = parseIndicatorRows(rows, {
       name: "CPI",
+      reportName: "TEST",
       valueField: "NATIONAL_SAME",
       valueFormatter: (v: number) => `${v}%`,
       yoyChangeField: null,
@@ -35,6 +36,7 @@ describe("parseIndicatorRows", () => {
     ];
     const result = parseIndicatorRows(rows, {
       name: "PPI",
+      reportName: "TEST",
       valueField: "BASE_SAME",
       valueFormatter: (v: number) => `${v}%`,
       yoyChangeField: null,
@@ -54,6 +56,7 @@ describe("parseIndicatorRows", () => {
     ];
     const result = parseIndicatorRows(rows, {
       name: "PMI",
+      reportName: "TEST",
       valueField: "MAKE_INDEX",
       valueFormatter: (v: number) => `${v}`,
       yoyChangeField: "MAKE_SAME",
@@ -69,6 +72,7 @@ describe("parseIndicatorRows", () => {
   it("空数据返回数据暂缺", () => {
     const result = parseIndicatorRows([], {
       name: "CPI",
+      reportName: "TEST",
       valueField: "NATIONAL_SAME",
       valueFormatter: (v: number) => `${v}%`,
       yoyChangeField: null,
@@ -124,7 +128,7 @@ describe("macroAnalysis tool", () => {
     const tool = createMacroAnalysisTool();
     expect(tool.name).toBe("macroAnalysis");
     expect(tool.parameters).toBeDefined();
-    expect(tool.parameters.properties.category.enum).toContain("all");
+    expect((tool.parameters as any).properties.category.enum).toContain("all");
   });
 });
 

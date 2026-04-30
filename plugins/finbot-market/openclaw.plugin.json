@@ -18,7 +18,8 @@
       "fundamentalAnalysis",
       "strategyBacktest",
       "checkAlerts",
-      "etfAnalysis"
+      "etfAnalysis",
+      "macroAnalysis"
     ]
   }
 }

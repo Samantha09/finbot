@@ -9,6 +9,7 @@ import { createFundamentalAnalysisTool } from "./tools/fundamental-analysis.js";
 import { createStrategyBacktestTool } from "./tools/strategy-backtest.js";
 import { createCheckAlertsTool } from "./tools/check-alerts.js";
 import { createEtfAnalysisTool } from "./tools/etf-analysis.js";
+import { createMacroAnalysisTool } from "./tools/macro-analysis.js";
 
 export default definePluginEntry({
   id: "finbot-market",
@@ -25,5 +26,6 @@ export default definePluginEntry({
     api.registerTool(createStrategyBacktestTool());
     api.registerTool(createCheckAlertsTool());
     api.registerTool(createEtfAnalysisTool());
+    api.registerTool(createMacroAnalysisTool());
   },
 });
