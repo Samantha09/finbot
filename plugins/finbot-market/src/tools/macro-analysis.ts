@@ -214,28 +214,18 @@ async function fetchIndicator(config: IndicatorConfig): Promise<MacroDataPoint> 
 
 async function fetchExchangeRate(): Promise<MacroDataPoint> {
   try {
-    const url = "https://push2.eastmoney.com/api/qt/ulist.np/get?secids=133.USDCNH&fields=f43,f170";
+    const url = "https://api.exchangerate-api.com/v4/latest/USD";
     const response = await fetch(url);
     const json = await response.json();
-    if (json.rc !== 0 || !json.data?.diff?.[0]) {
+    const rate = json.rates?.CNY;
+    if (typeof rate !== "number") {
       throw new Error("汇率数据格式异常");
     }
-    const d = json.data.diff[0];
-    const f43 = d.f43;
-    const f170 = d.f170;
-    if (f43 === "-" || f43 === undefined || f43 === null) {
-      throw new Error("汇率数据暂不可用");
-    }
-    const value = (Number(f43) / 10000).toFixed(4);
-    const changePct = f170 !== "-" && f170 !== undefined && f170 !== null
-      ? (Number(f170) / 100).toFixed(2)
-      : "0.00";
-    const sign = Number(changePct) >= 0 ? "+" : "";
     return {
       name: "美元兑人民币汇率",
-      value,
+      value: rate.toFixed(4),
       yoy: null,
-      mom: `${sign}${changePct}%`,
+      mom: null,
     };
   } catch (error) {
     return { name: "美元兑人民币汇率", value: "数据暂缺", yoy: null, mom: null };

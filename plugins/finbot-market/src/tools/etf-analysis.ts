@@ -21,6 +21,7 @@ interface EtfQuoteData {
 }
 
 interface EtfInfoData {
+  fundName: string;
   fundSize: number;
   managementFee: string;
   trackingIndex: string;
@@ -107,6 +108,7 @@ async function fetchEtfInfo(secid: string): Promise<EtfInfoData> {
 
   const d = json.data;
   return {
+    fundName: d.f58 ? String(d.f58) : "N/A",
     fundSize: d.f191 ? d.f191 / 1e8 : 0,
     managementFee: d.f192 ? (d.f192 / 100).toFixed(2) + "%" : "N/A",
     trackingIndex: d.f193 ? String(d.f193) : "N/A",
@@ -127,6 +129,24 @@ async function fetchEtfHoldings(code: string): Promise<EtfHolding[]> {
     name: String(row.SECURITY_NAME_ABBR ?? ""),
     ratio: Number(row.RATIO ?? 0),
   }));
+}
+
+async function fetchForexRate(): Promise<string | null> {
+  try {
+    const url = "https://api.exchangerate-api.com/v4/latest/USD";
+    const response = await fetch(url);
+    const json = await response.json();
+    const rate = json.rates?.CNY;
+    if (typeof rate !== "number") return null;
+    return rate.toFixed(4);
+  } catch {
+    return null;
+  }
+}
+
+function isQdiiEtf(info: EtfInfoData): boolean {
+  const text = `${info.fundName} ${info.trackingIndex}`.toLowerCase();
+  return text.includes("qdii") || text.includes("海外") || text.includes("nasdaq") || text.includes("标普") || text.includes("hong kong") || text.includes("港股") || text.includes("美股");
 }
 
 async function fetchEtfMoneyFlow(code: string): Promise<EtfMoneyFlowData> {
@@ -152,16 +172,20 @@ function formatEtfOutput(
   info: EtfInfoData,
   holdings: EtfHolding[],
   moneyFlow: EtfMoneyFlowData,
+  forexRate: string | null,
 ): string {
   const premium = calcPremium(quote.price, quote.iopv);
   const premiumText = premium > 0 ? `溢价 ${premium}%` : premium < 0 ? `折价 ${Math.abs(premium)}%` : "平价";
   const changeSign = quote.changePercent.startsWith("-") ? "" : "+";
   const changeEmoji = quote.changePercent.startsWith("-") ? "🔴" : "🟢";
 
+  const qdii = isQdiiEtf(info);
+
   const lines: string[] = [
     `📊 ${symbol} ETF 综合分析`,
     "",
     "**基本信息**:",
+    `  基金名称: ${info.fundName}`,
     `  基金规模: ${formatBillion(info.fundSize)}`,
     `  管理费率: ${info.managementFee}`,
     `  跟踪指数: ${info.trackingIndex}`,
@@ -179,6 +203,15 @@ function formatEtfOutput(
     `  近10日主力净流入: ${moneyFlow.week10NetInflow >= 0 ? "+" : ""}${formatBillion(moneyFlow.week10NetInflow)}`,
     "",
   ];
+
+  if (qdii && forexRate) {
+    lines.push(
+      "**汇率影响（QDII）**:",
+      `  美元兑人民币: ${forexRate}`,
+      "  提示: 人民币升值对 QDII 净值有负面影响，贬值则有利",
+      "",
+    );
+  }
 
   if (holdings.length > 0) {
     lines.push("**前十大持仓**:", "| 股票 | 占比 |", "|------|------|");
@@ -216,11 +249,16 @@ export function createEtfAnalysisTool(): AnyAgentTool {
         }
 
         const safeQuote = quote ?? { price: 0, changePercent: "0%", volume: 0, iopv: 0 };
-        const safeInfo = info ?? { fundSize: 0, managementFee: "N/A", trackingIndex: "N/A", establishDate: "N/A" };
+        const safeInfo = info ?? { fundName: "N/A", fundSize: 0, managementFee: "N/A", trackingIndex: "N/A", establishDate: "N/A" };
         const safeHoldings = holdings;
         const safeMoneyFlow = moneyFlow ?? { dayNetInflow: 0, week5NetInflow: 0, week10NetInflow: 0 };
 
-        const output = formatEtfOutput(symbol, safeQuote, safeInfo, safeHoldings, safeMoneyFlow);
+        let forexRate: string | null = null;
+        if (isQdiiEtf(safeInfo)) {
+          forexRate = await fetchForexRate().catch(() => null);
+        }
+
+        const output = formatEtfOutput(symbol, safeQuote, safeInfo, safeHoldings, safeMoneyFlow, forexRate);
         return toToolResult({ content: output });
       } catch (error) {
         return toToolResult({

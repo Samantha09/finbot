@@ -232,11 +232,11 @@ describe("macroAnalysis tool mock tests", () => {
           }),
         };
       }
-      if (url.includes("133.USDCNH") || url.includes("133.USDCNY")) {
+      if (url.includes("exchangerate-api.com")) {
         return {
           json: () => Promise.resolve({
-            rc: 0,
-            data: { f43: 72345, f170: 12 },
+            base: "USD",
+            rates: { CNY: 7.2345 },
           }),
         };
       }

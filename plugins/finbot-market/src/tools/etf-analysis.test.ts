@@ -69,7 +69,7 @@ describe("etfAnalysis tool mock tests", () => {
             rc: 0,
             data: {
               f43: 26500, f170: 123, f47: 152000000, f135: 26480,
-              f191: 120050000000, f192: 50, f193: "上证50指数",
+              f58: "华夏上证50ETF", f191: 120050000000, f192: 50, f193: "上证50指数",
             },
           }),
         };
@@ -117,7 +117,7 @@ describe("etfAnalysis tool mock tests", () => {
 
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       if (url.includes("push2.eastmoney.com")) {
-        return { json: () => Promise.resolve({ rc: 0, data: { f43: 26500, f170: 0, f47: 0, f135: 26480 } }) };
+        return { json: () => Promise.resolve({ rc: 0, data: { f43: 26500, f170: 0, f47: 0, f135: 26480, f58: "华夏上证50ETF" } }) };
       }
       if (url.includes("RPT_FUND_PORTFOLIO_STOCK")) {
         return { json: () => Promise.resolve({ result: { data: [] } }) };
@@ -134,5 +134,42 @@ describe("etfAnalysis tool mock tests", () => {
 
     expect(parsed.isError).toBeFalsy();
     expect(parsed.text).toContain("510050.SH");
+  });
+
+  it("mock 测试 QDII ETF 显示汇率信息", async () => {
+    const tool = createEtfAnalysisTool();
+
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("push2.eastmoney.com")) {
+        return {
+          json: () => Promise.resolve({
+            rc: 0,
+            data: {
+              f43: 118100, f170: -123, f47: 10000000, f135: 118000,
+              f58: "易方达中证海外中国互联网50ETF", f191: 40459000000, f192: 60, f193: "中证海外中国互联网50指数",
+            },
+          }),
+        };
+      }
+      if (url.includes("RPT_FUND_PORTFOLIO_STOCK")) {
+        return { json: () => Promise.resolve({ result: { data: [] } }) };
+      }
+      if (url.includes("RPT_ETF_MONEYFLOW")) {
+        return { json: () => Promise.resolve({ result: { data: [] } }) };
+      }
+      if (url.includes("exchangerate-api.com")) {
+        return { json: () => Promise.resolve({ rates: { CNY: 7.2345 } }) };
+      }
+      return { json: () => Promise.resolve({}) };
+    }));
+
+    const result = await tool.execute("tc4", { symbol: "513050" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+
+    expect(parsed.isError).toBeFalsy();
+    expect(parsed.text).toContain("513050");
+    expect(parsed.text).toContain("汇率影响（QDII）");
+    expect(parsed.text).toContain("7.2345");
   });
 });
