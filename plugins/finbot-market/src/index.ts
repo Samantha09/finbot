@@ -10,6 +10,8 @@ import { createStrategyBacktestTool } from "./tools/strategy-backtest.js";
 import { createCheckAlertsTool } from "./tools/check-alerts.js";
 import { createEtfAnalysisTool } from "./tools/etf-analysis.js";
 import { createMacroAnalysisTool } from "./tools/macro-analysis.js";
+import { createSentimentAnalysisTool } from "./tools/sentiment-analysis.js";
+import { createMarketHeatmapTool } from "./tools/market-heatmap.js";
 
 export default definePluginEntry({
   id: "finbot-market",
@@ -27,5 +29,7 @@ export default definePluginEntry({
     api.registerTool(createCheckAlertsTool());
     api.registerTool(createEtfAnalysisTool());
     api.registerTool(createMacroAnalysisTool());
+    api.registerTool(createSentimentAnalysisTool());
+    api.registerTool(createMarketHeatmapTool());
   },
 });

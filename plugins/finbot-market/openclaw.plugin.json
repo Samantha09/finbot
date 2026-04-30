@@ -19,7 +19,9 @@
       "strategyBacktest",
       "checkAlerts",
       "etfAnalysis",
-      "macroAnalysis"
+      "macroAnalysis",
+      "sentimentAnalysis",
+      "marketHeatmap"
     ]
   }
 }
