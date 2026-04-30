@@ -65,11 +65,11 @@ describe("sentimentAnalysis tool", () => {
 });
 
 describe("sentimentAnalysis tool mock tests", () => {
-  it("mock 测试 symbol 路径返回完整分析", async () => {
+  it("mock 测试 A股 symbol 路径返回完整分析", async () => {
     const tool = createSentimentAnalysisTool();
 
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
-      if (url.includes("np-anotice-stock.eastmoney.com")) {
+      if (url.includes("np-anotice-stock.eastmoney.com") && url.includes("ann_type=A")) {
         return {
           json: () => Promise.resolve({
             data: {
@@ -96,6 +96,63 @@ describe("sentimentAnalysis tool mock tests", () => {
     expect(parsed.text).toContain("⚠️ 不构成投资建议");
   });
 
+  it("mock 测试港股 symbol 路径", async () => {
+    const tool = createSentimentAnalysisTool();
+
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("np-anotice-stock.eastmoney.com") && url.includes("ann_type=H")) {
+        return {
+          json: () => Promise.resolve({
+            data: {
+              list: [
+                { title_ch: "腾讯控股发布一季度业绩", notice_date: "2026-04-30 10:00", art_code: "123", codes: [{ short_name: "腾讯控股" }] },
+              ],
+            },
+          }),
+        };
+      }
+      return { json: () => Promise.resolve({}) };
+    }));
+
+    const result = await tool.execute("tc2", { symbol: "00700.HK" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+
+    expect(parsed.isError).toBeFalsy();
+    expect(parsed.text).toContain("00700");
+  });
+
+  it("mock 测试美股 symbol 路径（Alpha Vantage）", async () => {
+    const originalKey = process.env.ALPHA_VANTAGE_API_KEY;
+    process.env.ALPHA_VANTAGE_API_KEY = "test-key";
+    const tool = createSentimentAnalysisTool();
+
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("alphavantage.co")) {
+        return {
+          json: () => Promise.resolve({
+            feed: [
+              { title: "Apple reports strong earnings", source: "Bloomberg", url: "https://example.com/1", time_published: "20260430T120000", summary: "Apple beat expectations", overall_sentiment_score: 0.45 },
+              { title: "iPhone sales decline in China", source: "Reuters", url: "https://example.com/2", time_published: "20260429T100000", summary: "Sales down 5%", overall_sentiment_score: -0.42 },
+            ],
+          }),
+        };
+      }
+      return { json: () => Promise.resolve({}) };
+    }));
+
+    const result = await tool.execute("tc3", { symbol: "AAPL" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+
+    expect(parsed.isError).toBeFalsy();
+    expect(parsed.text).toContain("AAPL");
+    expect(parsed.text).toContain("[正面]");
+    expect(parsed.text).toContain("[负面]");
+
+    process.env.ALPHA_VANTAGE_API_KEY = originalKey;
+  });
+
   it("mock 测试 keyword 路径", async () => {
     const tool = createSentimentAnalysisTool();
 
@@ -115,7 +172,7 @@ describe("sentimentAnalysis tool mock tests", () => {
       return { json: () => Promise.resolve({}) };
     }));
 
-    const result = await tool.execute("tc2", { keyword: "人工智能" });
+    const result = await tool.execute("tc4", { keyword: "人工智能" });
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
 
@@ -131,7 +188,7 @@ describe("sentimentAnalysis tool mock tests", () => {
       throw new Error("timeout");
     }));
 
-    const result = await tool.execute("tc3", { symbol: "600519.SH" });
+    const result = await tool.execute("tc5", { symbol: "600519.SH" });
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
 
@@ -141,7 +198,7 @@ describe("sentimentAnalysis tool mock tests", () => {
 
   it("参数校验：symbol 和 keyword 都为空", async () => {
     const tool = createSentimentAnalysisTool();
-    const result = await tool.execute("tc4", {});
+    const result = await tool.execute("tc6", {});
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
 
@@ -149,9 +206,9 @@ describe("sentimentAnalysis tool mock tests", () => {
     expect(parsed.text).toContain("至少提供");
   });
 
-  it.skipIf(skipRealApi)("真实 symbol 接口返回数据", async () => {
+  it.skipIf(skipRealApi)("真实 A股 symbol 接口返回数据", async () => {
     const tool = createSentimentAnalysisTool();
-    const result = await tool.execute("tc5", { symbol: "600519.SH" });
+    const result = await tool.execute("tc7", { symbol: "600519.SH" });
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
     expect(parsed.isError).toBeFalsy();

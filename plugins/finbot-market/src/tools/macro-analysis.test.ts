@@ -129,6 +129,7 @@ describe("macroAnalysis tool", () => {
     expect(tool.name).toBe("macroAnalysis");
     expect(tool.parameters).toBeDefined();
     expect((tool.parameters as any).properties.category.enum).toContain("all");
+    expect((tool.parameters as any).properties.category.enum).toContain("us");
   });
 });
 
@@ -307,9 +308,72 @@ describe("macroAnalysis tool mock tests", () => {
     expect(parsed.text).not.toContain("PMI");
   });
 
+  it("mock 测试 US 分类", async () => {
+    const originalKey = process.env.ALPHA_VANTAGE_API_KEY;
+    process.env.ALPHA_VANTAGE_API_KEY = "test-key";
+    const tool = createMacroAnalysisTool();
+
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("alphavantage.co")) {
+        if (url.includes("FEDERAL_FUNDS_RATE")) {
+          return {
+            json: () => Promise.resolve({
+              name: "Federal Funds Rate",
+              interval: "monthly",
+              unit: "percent",
+              data: [{ date: "2026-03-01", value: "5.33" }, { date: "2026-02-01", value: "5.50" }],
+            }),
+          };
+        }
+        if (url.includes("CPI")) {
+          return {
+            json: () => Promise.resolve({
+              name: "Consumer Price Index",
+              interval: "monthly",
+              unit: "index",
+              data: [{ date: "2026-03-01", value: "308.417" }, { date: "2026-02-01", value: "307.917" }],
+            }),
+          };
+        }
+        if (url.includes("UNEMPLOYMENT")) {
+          return {
+            json: () => Promise.resolve({
+              name: "Unemployment Rate",
+              interval: "monthly",
+              unit: "percent",
+              data: [{ date: "2026-03-01", value: "4.1" }, { date: "2026-02-01", value: "4.2" }],
+            }),
+          };
+        }
+        if (url.includes("REAL_GDP")) {
+          return {
+            json: () => Promise.resolve({
+              name: "Real Gross Domestic Product",
+              interval: "quarterly",
+              unit: "billions of dollars",
+              data: [{ date: "2025-10-01", value: "23140.5" }, { date: "2025-07-01", value: "22950.3" }],
+            }),
+          };
+        }
+      }
+      return { json: () => Promise.resolve({}) };
+    }));
+
+    const result = await tool.execute("tc4", { category: "us" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+
+    expect(parsed.isError).toBeFalsy();
+    expect(parsed.text).toContain("美国宏观");
+    expect(parsed.text).toContain("Consumer Price Index");
+    expect(parsed.text).toContain("Federal Funds Rate");
+
+    process.env.ALPHA_VANTAGE_API_KEY = originalKey;
+  });
+
   it.skipIf(skipRealApi)("真实 CPI 接口返回数据", async () => {
     const tool = createMacroAnalysisTool();
-    const result = await tool.execute("tc4", { category: "inflation" });
+    const result = await tool.execute("tc5", { category: "inflation" });
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
     expect(parsed.isError).toBeFalsy();

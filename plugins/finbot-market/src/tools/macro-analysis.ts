@@ -6,8 +6,8 @@ const MacroAnalysisSchema = {
   properties: {
     category: {
       type: "string" as const,
-      enum: ["all", "inflation", "monetary", "growth", "external"],
-      description: "指标分类，默认 all",
+      enum: ["all", "inflation", "monetary", "growth", "external", "us"],
+      description: "指标分类，默认 all。us 为美国宏观经济指标",
     },
   },
 };
@@ -86,7 +86,6 @@ export function parseIndicatorRows(
   if (config.momChangeField && latest[config.momChangeField] !== undefined && latest[config.momChangeField] !== null) {
     mom = formatChange(Number(latest[config.momChangeField]), config.momUnit);
   } else if (prev && config.valueField && latest[config.valueField] !== undefined && prev[config.valueField] !== undefined) {
-    // 当 momUnit 为 % 时，优先使用去掉 _SAME 后缀的字段作为基数计算百分比变化
     let curr: number;
     let pre: number;
     if (config.momUnit === "%" && config.valueField.endsWith("_SAME")) {
@@ -232,6 +231,73 @@ async function fetchExchangeRate(): Promise<MacroDataPoint> {
   }
 }
 
+interface AvMacroResponse {
+  name: string;
+  interval: string;
+  unit: string;
+  data: Array<{ date: string; value: string }>;
+}
+
+async function fetchAvMacroIndicator(functionName: string): Promise<MacroDataPoint | null> {
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+  if (!apiKey) return null;
+
+  const url = `https://www.alphavantage.co/query?function=${functionName}&apikey=${apiKey}`;
+  const response = await fetch(url);
+  const json: AvMacroResponse = await response.json();
+
+  if (!json.data || json.data.length === 0) return null;
+
+  const latest = json.data[0];
+  const prev = json.data[1] ?? null;
+  const value = Number(latest.value);
+
+  let mom: string | null = null;
+  if (prev) {
+    const prevVal = Number(prev.value);
+    if (functionName === "REAL_GDP") {
+      // GDP 用环比增长率
+      const pct = prevVal !== 0 ? +((value - prevVal) / prevVal * 100).toFixed(2) : 0;
+      mom = formatChange(pct, "%");
+    } else {
+      const diff = +(value - prevVal).toFixed(2);
+      mom = formatChange(diff, json.unit === "percent" ? "pp" : "pp");
+    }
+  }
+
+  const unitLabel = json.unit === "percent" ? "%" : "";
+  return {
+    name: json.name,
+    value: `${value}${unitLabel}`,
+    yoy: null,
+    mom,
+  };
+}
+
+async function fetchUsMacroIndicators(): Promise<MacroDataPoint[]> {
+  const indicators: MacroDataPoint[] = [];
+
+  const configs = [
+    { function: "CPI", name: "美国CPI" },
+    { function: "FEDERAL_FUNDS_RATE", name: "美联储利率" },
+    { function: "UNEMPLOYMENT", name: "美国失业率" },
+    { function: "REAL_GDP", name: "美国实际GDP" },
+  ];
+
+  await Promise.all(
+    configs.map(async (cfg) => {
+      try {
+        const result = await fetchAvMacroIndicator(cfg.function);
+        if (result) indicators.push(result);
+      } catch {
+        indicators.push({ name: cfg.name, value: "数据暂缺", yoy: null, mom: null });
+      }
+    }),
+  );
+
+  return indicators;
+}
+
 export function formatMacroOutput(categories: CategoryData[]): string {
   const lines: string[] = ["📊 宏观经济指标概览", ""];
 
@@ -260,13 +326,14 @@ const CATEGORY_MAP: Record<string, string[]> = {
   monetary: ["m2", "financing", "lpr1y", "lpr5y"],
   growth: ["gdp", "pmi", "unemployment"],
   external: ["exchangeRate"],
+  us: [],
 };
 
 export function createMacroAnalysisTool(): AnyAgentTool {
   return {
     name: "macroAnalysis",
     label: "Macro Analysis",
-    description: "宏观经济数据查询：CPI、PPI、PMI、GDP、M2、社融、LPR、失业率、美元兑人民币汇率，支持按分类筛选",
+    description: "宏观经济数据查询：中国（CPI、PPI、PMI、GDP、M2、社融、LPR、失业率、汇率）和美国（CPI、美联储利率、失业率、GDP），支持按分类筛选",
     parameters: MacroAnalysisSchema,
     execute: async (_toolCallId, params) => {
       const category = (params as { category?: string }).category ?? "all";
@@ -300,12 +367,19 @@ export function createMacroAnalysisTool(): AnyAgentTool {
         }
       }
 
+      // 美国宏观指标
+      let usIndicators: MacroDataPoint[] = [];
+      if (category === "all" || category === "us") {
+        usIndicators = await fetchUsMacroIndicators().catch(() => []);
+      }
+
       // 按分类组装输出
       const categories: CategoryData[] = [
         { category: "通胀", indicators: [] },
         { category: "货币", indicators: [] },
         { category: "增长", indicators: [] },
         { category: "对外", indicators: [] },
+        { category: "美国宏观", indicators: [] },
       ];
 
       const pushToCategory = (key: string, catName: string) => {
@@ -326,8 +400,28 @@ export function createMacroAnalysisTool(): AnyAgentTool {
       pushToCategory("unemployment", "增长");
       pushToCategory("exchangeRate", "对外");
 
+      // 添加美国宏观指标
+      const usCat = categories.find((c) => c.category === "美国宏观");
+      if (usCat) {
+        for (const ind of usIndicators) {
+          usCat.indicators.push(ind);
+        }
+      }
+
       const output = formatMacroOutput(categories);
-      const allFailed = Object.values(results).every((r) => r.value === "数据暂缺");
+      const chinaResults = Object.values(results);
+      const chinaFailed = chinaResults.length === 0 || chinaResults.every((r) => r.value === "数据暂缺");
+      const usFailed = usIndicators.length === 0;
+
+      let allFailed: boolean;
+      if (category === "us") {
+        allFailed = usFailed;
+      } else if (category === "all") {
+        allFailed = chinaFailed && usFailed;
+      } else {
+        allFailed = chinaFailed;
+      }
+
       return toToolResult({ content: output, isError: allFailed });
     },
   };
