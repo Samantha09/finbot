@@ -34,4 +34,8 @@ cat > "$WS/BOOTSTRAP.md" << 'EOF'
 5. 回答简洁，使用 Markdown 格式输出数据表格
 EOF
 
+# 拷贝内置 skill 到 workspace
+mkdir -p "$WS/skills"
+cp -r /app/skills/* "$WS/skills/" 2>/dev/null || true
+
 exec "$@"

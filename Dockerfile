@@ -11,6 +11,9 @@ COPY plugins/finbot-market/src/ plugins/finbot-market/src/
 
 RUN cd plugins/finbot-market && npm install && npm run build && npm run test:ci
 
+# Copy built-in skills
+COPY skills/ /app/skills/
+
 # Copy workspace bootstrap files (persona, user profile)
 COPY AGENTS.md USER.md ./
 
