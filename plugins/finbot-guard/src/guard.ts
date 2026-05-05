@@ -261,7 +261,6 @@ export function scoreToolParams(
     if (highRiskKeyword) {
       score += 60;
       reasons.push(`命中高危关键词: "${highRiskKeyword}"`);
-      continue;
     }
 
     const mediumRiskKeyword = containsKeyword(text, mediumRiskKeywords);
