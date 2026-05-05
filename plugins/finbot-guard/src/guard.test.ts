@@ -104,9 +104,7 @@ describe("sanitizeToolResult", () => {
       details: { apiKey: "sk-abc123xyz" },
     };
     const sanitized = sanitizeToolResult(result);
-    const masked = (sanitized.details as any).apiKey;
-    expect(masked).not.toBe("sk-abc123xyz");
-    expect(masked.includes("***")).toBe(true);
+    expect((sanitized.details as any).apiKey).toBe("sk-***xyz");
   });
 
   it("脱敏 text 内容中的身份证号", () => {
@@ -133,6 +131,28 @@ describe("sanitizeToolResult", () => {
       details: { customSecret: "secret-value" },
     };
     const sanitized = sanitizeToolResult(result, { sensitiveFields: ["customSecret"] });
-    expect((sanitized.details as any).customSecret).not.toBe("secret-value");
+    expect((sanitized.details as any).customSecret).toBe("sec***lue");
+  });
+
+  it("不修改原始对象", () => {
+    const original = {
+      content: [{ type: "text" as const, text: "客服 13800138000" }],
+      details: { phone: "13800138000", nested: { email: "a@b.com" } },
+    };
+    const originalSnapshot = JSON.stringify(original);
+    const sanitized = sanitizeToolResult(original);
+    sanitized.content[0].text = "mutated";
+    (sanitized.details as any).phone = "mutated";
+    expect(JSON.stringify(original)).toBe(originalSnapshot);
+  });
+
+  it("脱敏 +86 手机号", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "电话 +8613800138000" }],
+      details: { phone: "+8613800138000" },
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect((sanitized.content[0] as any).text).toBe("电话 138****8000");
+    expect((sanitized.details as any).phone).toBe("138****8000");
   });
 });

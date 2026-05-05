@@ -82,7 +82,12 @@ function determineLevel(score: number): RiskLevel {
 }
 
 function maskPhone(value: string): string {
-  return value.replace(/(\d{3})\d{4}(\d{4})$/, "$1****$2");
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 13 && digits.startsWith("86")) {
+    const core = digits.slice(2);
+    return core.replace(/(\d{3})\d{4}(\d{4})$/, "$1****$2");
+  }
+  return digits.replace(/(\d{3})\d{4}(\d{4})$/, "$1****$2");
 }
 
 function maskIdCard(value: string): string {
