@@ -16,6 +16,11 @@ COPY plugins/finbot-audit/src/ plugins/finbot-audit/src/
 
 RUN cd plugins/finbot-audit && npm install && npm run build && npm run test:ci
 
+COPY plugins/finbot-guard/package.json plugins/finbot-guard/tsconfig.json plugins/finbot-guard/openclaw.plugin.json plugins/finbot-guard/
+COPY plugins/finbot-guard/src/ plugins/finbot-guard/src/
+
+RUN cd plugins/finbot-guard && npm install && npm run build && npm run test:ci
+
 # Copy built-in skills
 COPY skills/ /app/skills/
 
