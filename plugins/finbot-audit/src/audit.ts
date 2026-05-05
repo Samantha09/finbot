@@ -36,6 +36,83 @@ async function writeLog(entry: AuditLogEntry, logDir: string): Promise<void> {
   }
 }
 
+export interface AuditQueryParams {
+  date?: string;
+  tool?: string;
+  status?: "success" | "error";
+  limit?: number;
+}
+
+export interface AuditReport {
+  total: number;
+  successCount: number;
+  errorCount: number;
+  avgDurationMs: number;
+  entries: AuditLogEntry[];
+}
+
+export async function readAuditLogs(
+  params: AuditQueryParams,
+  options?: AuditOptions,
+): Promise<AuditReport> {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const date = params.date || new Date().toISOString().slice(0, 10);
+  const filePath = path.join(opts.logDir, `${date}.jsonl`);
+
+  let entries: AuditLogEntry[] = [];
+  try {
+    const content = await fs.readFile(filePath, "utf-8");
+    entries = content
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+  } catch {
+    // file not found or unreadable
+  }
+
+  if (params.tool) {
+    entries = entries.filter((e) => e.tool === params.tool);
+  }
+  if (params.status) {
+    entries = entries.filter((e) => e.status === params.status);
+  }
+
+  const limit = params.limit ?? 50;
+  entries = entries.slice(-limit);
+
+  const total = entries.length;
+  const successCount = entries.filter((e) => e.status === "success").length;
+  const errorCount = entries.filter((e) => e.status === "error").length;
+  const avgDurationMs = total > 0 ? Math.round(entries.reduce((sum, e) => sum + e.duration_ms, 0) / total) : 0;
+
+  return { total, successCount, errorCount, avgDurationMs, entries };
+}
+
+export function formatAuditReport(report: AuditReport, date: string): string {
+  if (report.total === 0) {
+    return `📋 ${date} 暂无审计日志`;
+  }
+
+  const lines = [
+    `📋 ${date} 审计报告`,
+    `总计: ${report.total} 次调用 | 成功: ${report.successCount} | 失败: ${report.errorCount} | 平均耗时: ${report.avgDurationMs}ms`,
+    "",
+  ];
+
+  for (const entry of report.entries) {
+    const time = entry.timestamp.slice(11, 19);
+    const icon = entry.status === "success" ? "✅" : "❌";
+    lines.push(`${time} ${icon} ${entry.tool} (${entry.duration_ms}ms)`);
+    lines.push(`   入参: ${entry.input_preview}`);
+    if (entry.error) {
+      lines.push(`   错误: ${entry.error}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 export function withAudit(
   tool: AnyAgentTool,
   pluginId: string,

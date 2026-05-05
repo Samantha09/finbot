@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { withAudit } from "./audit.js";
-import type { AnyAgentTool } from "./types.js";
+import { withAudit, readAuditLogs, formatAuditReport } from "./audit.js";
+import type { AnyAgentTool, AuditLogEntry } from "./types.js";
 
 const TEST_LOG_DIR = path.join(process.env.HOME || "/tmp", ".openclaw", "audit-logs-test");
 
@@ -98,5 +98,110 @@ describe("withAudit", () => {
     const entry = JSON.parse(lines[0]);
     expect(entry.output_preview).toContain("...[truncated]");
     expect(entry.output_preview.length).toBeLessThan(100);
+  });
+});
+
+describe("readAuditLogs", () => {
+  beforeEach(async () => {
+    await cleanTestLogs();
+  });
+
+  afterEach(async () => {
+    await cleanTestLogs();
+  });
+
+  async function writeMockEntries(entries: AuditLogEntry[]) {
+    await fs.mkdir(TEST_LOG_DIR, { recursive: true });
+    const filePath = path.join(TEST_LOG_DIR, "2026-05-05.jsonl");
+    const lines = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
+    await fs.appendFile(filePath, lines, "utf-8");
+  }
+
+  it("空日志返回空报告", async () => {
+    const report = await readAuditLogs({ date: "2026-05-05" }, { logDir: TEST_LOG_DIR });
+    expect(report.total).toBe(0);
+    expect(report.successCount).toBe(0);
+    expect(report.errorCount).toBe(0);
+    expect(report.avgDurationMs).toBe(0);
+  });
+
+  it("按日期读取日志", async () => {
+    await writeMockEntries([
+      { timestamp: "2026-05-05T10:00:00Z", level: "info", plugin_id: "p1", tool: "t1", duration_ms: 10, status: "success", input_preview: "{}", output_preview: "", error: null },
+      { timestamp: "2026-05-05T10:01:00Z", level: "info", plugin_id: "p1", tool: "t2", duration_ms: 20, status: "error", input_preview: "{}", output_preview: "", error: "fail" },
+    ]);
+
+    const report = await readAuditLogs({ date: "2026-05-05" }, { logDir: TEST_LOG_DIR });
+    expect(report.total).toBe(2);
+    expect(report.successCount).toBe(1);
+    expect(report.errorCount).toBe(1);
+    expect(report.avgDurationMs).toBe(15);
+  });
+
+  it("按工具名过滤", async () => {
+    await writeMockEntries([
+      { timestamp: "2026-05-05T10:00:00Z", level: "info", plugin_id: "p1", tool: "marketQuery", duration_ms: 10, status: "success", input_preview: "{}", output_preview: "", error: null },
+      { timestamp: "2026-05-05T10:01:00Z", level: "info", plugin_id: "p1", tool: "etfAnalysis", duration_ms: 20, status: "success", input_preview: "{}", output_preview: "", error: null },
+    ]);
+
+    const report = await readAuditLogs({ date: "2026-05-05", tool: "marketQuery" }, { logDir: TEST_LOG_DIR });
+    expect(report.total).toBe(1);
+    expect(report.entries[0].tool).toBe("marketQuery");
+  });
+
+  it("按状态过滤", async () => {
+    await writeMockEntries([
+      { timestamp: "2026-05-05T10:00:00Z", level: "info", plugin_id: "p1", tool: "t1", duration_ms: 10, status: "success", input_preview: "{}", output_preview: "", error: null },
+      { timestamp: "2026-05-05T10:01:00Z", level: "error", plugin_id: "p1", tool: "t2", duration_ms: 20, status: "error", input_preview: "{}", output_preview: "", error: "fail" },
+    ]);
+
+    const report = await readAuditLogs({ date: "2026-05-05", status: "error" }, { logDir: TEST_LOG_DIR });
+    expect(report.total).toBe(1);
+    expect(report.entries[0].status).toBe("error");
+  });
+
+  it("限制返回条数", async () => {
+    const entries: AuditLogEntry[] = Array.from({ length: 10 }, (_, i) => ({
+      timestamp: `2026-05-05T10:0${i}:00Z`,
+      level: "info",
+      plugin_id: "p1",
+      tool: `t${i}`,
+      duration_ms: i,
+      status: "success",
+      input_preview: "{}",
+      output_preview: "",
+      error: null,
+    }));
+    await writeMockEntries(entries);
+
+    const report = await readAuditLogs({ date: "2026-05-05", limit: 3 }, { logDir: TEST_LOG_DIR });
+    expect(report.total).toBe(3);
+    expect(report.entries[0].tool).toBe("t7");
+    expect(report.entries[2].tool).toBe("t9");
+  });
+});
+
+describe("formatAuditReport", () => {
+  it("空报告格式化", () => {
+    const text = formatAuditReport({ total: 0, successCount: 0, errorCount: 0, avgDurationMs: 0, entries: [] }, "2026-05-05");
+    expect(text).toContain("暂无审计日志");
+  });
+
+  it("非空报告格式化", () => {
+    const report = {
+      total: 2,
+      successCount: 1,
+      errorCount: 1,
+      avgDurationMs: 15,
+      entries: [
+        { timestamp: "2026-05-05T10:00:00Z", level: "info", plugin_id: "p1", tool: "marketQuery", duration_ms: 10, status: "success", input_preview: "{symbol:AAPL}", output_preview: "ok", error: null },
+        { timestamp: "2026-05-05T10:01:00Z", level: "error", plugin_id: "p1", tool: "marketQuery", duration_ms: 20, status: "error", input_preview: "{symbol:TSLA}", output_preview: "", error: "timeout" },
+      ],
+    };
+    const text = formatAuditReport(report as import("./audit.js").AuditReport, "2026-05-05");
+    expect(text).toContain("总计: 2 次调用");
+    expect(text).toContain("✅ marketQuery");
+    expect(text).toContain("❌ marketQuery");
+    expect(text).toContain("timeout");
   });
 });
