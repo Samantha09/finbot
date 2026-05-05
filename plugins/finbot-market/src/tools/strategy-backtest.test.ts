@@ -28,6 +28,7 @@ describe("strategyBacktest tool", () => {
     expect(parsed.text).toContain("策略收益");
     expect(parsed.text).toContain("最大回撤");
     expect(parsed.text).toContain("不构成投资建议");
+    expect(parsed.text).toContain("📄 可视化报告已生成:");
     expect(parsed.isError).toBeFalsy();
   }, 15000);
 
@@ -38,6 +39,7 @@ describe("strategyBacktest tool", () => {
     const parsed = JSON.parse(text);
     expect(parsed.text).toContain("00700.HK");
     expect(parsed.text).toContain("RSI");
+    expect(parsed.text).toContain("📄 可视化报告已生成:");
     expect(parsed.isError).toBeFalsy();
   }, 15000);
 });

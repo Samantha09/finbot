@@ -1,6 +1,8 @@
 import type { AnyAgentTool } from "../types.js";
 import { toToolResult } from "../types.js";
 import { calcMA, calcRSI, calcMACD, fetchKlines, type Kline } from "./technical-analysis.js";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 const StrategyBacktestSchema = {
   type: "object" as const,
@@ -63,6 +65,7 @@ interface BacktestResult {
   winCount: number;
   winRatePct: number;
   holdReturnPct: number;
+  equityCurve: number[];
   trades: Trade[];
 }
 
@@ -207,8 +210,86 @@ function runBacktest(
     winCount,
     winRatePct,
     holdReturnPct,
+    equityCurve,
     trades,
   };
+}
+
+function generateBacktestHtml(
+  symbol: string,
+  strategy: string,
+  result: BacktestResult,
+  klines: Kline[],
+): string {
+  const dates = klines.slice(-result.equityCurve.length).map((k) => k.date);
+  const startIndex = klines.length - result.equityCurve.length;
+  const firstClose = klines[startIndex].close;
+  const holdCurve = result.equityCurve.map((_, i) => {
+    const currClose = klines[startIndex + i].close;
+    return +(result.initialCapital * (currClose / firstClose)).toFixed(2);
+  });
+
+  const strategyData = dates.map((d, i) => ({ time: d, value: result.equityCurve[i] }));
+  const holdData = dates.map((d, i) => ({ time: d, value: holdCurve[i] }));
+
+  const tradesRows = result.trades
+    .map(
+      (t) =>
+        `<tr><td>${t.date}</td><td>${t.action === "BUY" ? "买入" : "卖出"}</td><td>${t.price.toFixed(2)}</td><td>${t.shares}</td><td>${t.value.toFixed(2)}</td><td>${t.reason}</td></tr>`,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${symbol} 策略回测报告</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:960px;margin:40px auto;padding:0 20px;color:#333}
+h1{font-size:20px;margin-bottom:8px}
+h2{font-size:14px;color:#666;margin-bottom:20px}
+#chart{height:400px;margin-bottom:24px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.metric{background:#f6f8fa;border-radius:8px;padding:12px;text-align:center}
+.metric-value{font-size:18px;font-weight:600}
+.metric-label{font-size:12px;color:#666;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #eaecef}
+th{background:#f6f8fa;font-weight:500}
+tr:hover{background:#f6f8fa}
+</style>
+</head>
+<body>
+<h1>${symbol} 策略回测报告</h1>
+<h2>${strategy === "MA_CROSSOVER" ? "双均线交叉" : strategy === "RSI_THRESHOLD" ? "RSI 阈值" : "MACD 金叉死叉"} | 初始资金 ${result.initialCapital.toLocaleString()}</h2>
+<div id="chart"></div>
+<div class="metrics">
+  <div class="metric"><div class="metric-value">${result.totalReturnPct}%</div><div class="metric-label">策略收益</div></div>
+  <div class="metric"><div class="metric-value">${result.holdReturnPct}%</div><div class="metric-label">持有收益</div></div>
+  <div class="metric"><div class="metric-value">${result.maxDrawdownPct}%</div><div class="metric-label">最大回撤</div></div>
+  <div class="metric"><div class="metric-value">${result.sharpeRatio}</div><div class="metric-label">夏普比率</div></div>
+  <div class="metric"><div class="metric-value">${result.tradeCount}</div><div class="metric-label">交易次数</div></div>
+  <div class="metric"><div class="metric-value">${result.winRatePct}%</div><div class="metric-label">胜率</div></div>
+  <div class="metric"><div class="metric-value">${result.annualizedReturnPct}%</div><div class="metric-label">年化收益</div></div>
+  <div class="metric"><div class="metric-value">${result.finalCapital.toLocaleString()}</div><div class="metric-label">最终资金</div></div>
+</div>
+<h3>交易明细</h3>
+<table>
+  <thead><tr><th>日期</th><th>操作</th><th>价格</th><th>股数</th><th>金额</th><th>触发原因</th></tr></thead>
+  <tbody>${tradesRows}</tbody>
+</table>
+<script>
+const chart = LightweightCharts.createChart(document.getElementById('chart'), { width: 920, height: 400, layout: { background: { color: '#ffffff' }, textColor: '#333' }, grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } }, crosshair: { mode: LightweightCharts.CrosshairMode.Normal }, rightPriceScale: { borderColor: '#e0e0e0' }, timeScale: { borderColor: '#e0e0e0' } });
+const strategySeries = chart.addLineSeries({ color: '#2962FF', lineWidth: 2, title: '策略收益' });
+strategySeries.setData(${JSON.stringify(strategyData)});
+const holdSeries = chart.addLineSeries({ color: '#9E9E9E', lineWidth: 2, lineStyle: LightweightCharts.LineStyle.LargeDashed, title: '持有收益' });
+holdSeries.setData(${JSON.stringify(holdData)});
+chart.timeScale().fitContent();
+</script>
+</body>
+</html>`;
 }
 
 export function createStrategyBacktestTool(): AnyAgentTool {
@@ -247,6 +328,19 @@ export function createStrategyBacktestTool(): AnyAgentTool {
 
         const result = runBacktest(klines, strategy, initialCapital, shortPeriod, longPeriod, rsiBuy, rsiSell);
 
+        // 生成 HTML 报告
+        const reportDir = path.join(process.env.HOME || "/tmp", ".openclaw", "workspace", "backtest-reports");
+        const reportName = `${symbol.replace(/\./g, "_")}_${strategy}_${new Date().toISOString().replace(/[:.]/g, "-")}.html`;
+        const reportPath = path.join(reportDir, reportName);
+
+        try {
+          await fs.mkdir(reportDir, { recursive: true });
+          const html = generateBacktestHtml(symbol, strategy, result, klines);
+          await fs.writeFile(reportPath, html, "utf-8");
+        } catch {
+          // HTML 生成失败不影响文本报告返回
+        }
+
         const lines: string[] = [
           `📈 ${symbol} 策略回测报告`,
           `策略: ${strategy === "MA_CROSSOVER" ? `双均线交叉 (MA${shortPeriod}/MA${longPeriod})` : strategy === "RSI_THRESHOLD" ? `RSI 阈值 (${rsiBuy}/${rsiSell})` : "MACD 金叉死叉"}`,
@@ -278,6 +372,10 @@ export function createStrategyBacktestTool(): AnyAgentTool {
         }
 
         lines.push("", "⚠️ 回测结果基于历史数据，不构成投资建议");
+
+        if (reportPath) {
+          lines.push("", `📄 可视化报告已生成: ${reportPath}`);
+        }
 
         return toToolResult({ content: lines.join("\n") });
       } catch (error) {
