@@ -34,3 +34,4 @@ Thumbs.db
 
 # Generated backtest reports
 workspace/backtest-reports/
+docs/backtrader/
