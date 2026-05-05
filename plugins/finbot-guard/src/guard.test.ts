@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreToolParams } from "./guard.js";
+import { scoreToolParams, sanitizeToolResult } from "./guard.js";
 
 describe("scoreToolParams", () => {
   it("正常股票代码为低风险", () => {
@@ -49,5 +49,90 @@ describe("scoreToolParams", () => {
   it("字段类型异常检测", () => {
     const result = scoreToolParams("marketQuery", { symbol: "这是一个很长的中文句子用来测试字段类型异常" });
     expect(result.score).toBeGreaterThanOrEqual(30);
+  });
+});
+
+describe("sanitizeToolResult", () => {
+  it("保留非敏感字段", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "价格: 100" }],
+      details: { price: 100, symbol: "AAPL" },
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect(sanitized.details).toEqual({ price: 100, symbol: "AAPL" });
+  });
+
+  it("脱敏 phone 字段", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "联系客服" }],
+      details: { phone: "13800138000" },
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect((sanitized.details as any).phone).toBe("138****8000");
+  });
+
+  it("脱敏 text 内容中的手机号", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "客服电话 13800138000" }],
+      details: {},
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect((sanitized.content[0] as any).text).toBe("客服电话 138****8000");
+  });
+
+  it("脱敏 idCard 字段", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "身份信息" }],
+      details: { idCard: "110101199001011234" },
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect((sanitized.details as any).idCard).toBe("110101********1234");
+  });
+
+  it("脱敏 email 字段", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "邮件联系" }],
+      details: { email: "alice@example.com" },
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect((sanitized.details as any).email).toBe("ali***@example.com");
+  });
+
+  it("脱敏 apiKey 字段", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "API 配置" }],
+      details: { apiKey: "sk-abc123xyz" },
+    };
+    const sanitized = sanitizeToolResult(result);
+    const masked = (sanitized.details as any).apiKey;
+    expect(masked).not.toBe("sk-abc123xyz");
+    expect(masked.includes("***")).toBe(true);
+  });
+
+  it("脱敏 text 内容中的身份证号", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "身份证 110101199001011234" }],
+      details: {},
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect((sanitized.content[0] as any).text).toBe("身份证 110101********1234");
+  });
+
+  it("脱敏 text 内容中的邮箱", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "联系邮箱 alice@example.com" }],
+      details: {},
+    };
+    const sanitized = sanitizeToolResult(result);
+    expect((sanitized.content[0] as any).text).toBe("联系邮箱 ali***@example.com");
+  });
+
+  it("自定义敏感字段", () => {
+    const result = {
+      content: [{ type: "text" as const, text: "数据" }],
+      details: { customSecret: "secret-value" },
+    };
+    const sanitized = sanitizeToolResult(result, { sensitiveFields: ["customSecret"] });
+    expect((sanitized.details as any).customSecret).not.toBe("secret-value");
   });
 });
