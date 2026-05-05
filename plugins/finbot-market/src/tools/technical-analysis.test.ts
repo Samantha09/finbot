@@ -94,6 +94,28 @@ describe("calcKDJ", () => {
     expect(kdj!.d).toBeGreaterThanOrEqual(0);
     expect(kdj!.d).toBeLessThanOrEqual(100);
   });
+
+  it("平滑计算结果正确（手工验证）", () => {
+    // period=3，构造可手工验算的数据
+    // RSV = (close - lowest_low) / (highest_high - lowest_low) * 100
+    // K = 2/3 * prev_K + 1/3 * RSV
+    // D = 2/3 * prev_D + 1/3 * K
+    // J = 3K - 2D
+    const klines = [
+      { date: "d1", open: 10, close: 10, high: 10, low: 10, volume: 1000 },
+      { date: "d2", open: 10, close: 10, high: 10, low: 10, volume: 1000 },
+      { date: "d3", open: 10, close: 10, high: 10, low: 10, volume: 1000 }, // RSV=50, K=50, D=50
+      { date: "d4", open: 10, close: 12, high: 12, low: 8, volume: 1000 },  // 近3日 high=12 low=8, RSV=100
+      { date: "d5", open: 12, close: 8, high: 12, low: 8, volume: 1000 },   // 近3日 high=12 low=8, RSV=0
+    ];
+    const kdj = calcKDJ(klines, 3);
+    expect(kdj).not.toBeNull();
+    // d4: K=66.67, D=55.56
+    // d5: K=2/3*66.67+1/3*0=44.44, D=2/3*55.56+1/3*44.44=51.85, J=29.63
+    expect(kdj!.k).toBeCloseTo(44.44, 1);
+    expect(kdj!.d).toBeCloseTo(51.85, 1);
+    expect(kdj!.j).toBeCloseTo(29.63, 1);
+  });
 });
 
 describe("technicalAnalysis tool", () => {

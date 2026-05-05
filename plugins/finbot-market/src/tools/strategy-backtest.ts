@@ -239,7 +239,7 @@ export function createStrategyBacktestTool(): AnyAgentTool {
       };
 
       try {
-        const klt = period === "weekly" ? "101" : "101";
+        const klt = period === "weekly" ? "102" : "101";
         const klines = await fetchKlines(symbol, 500, klt);
         if (klines.length < 60) {
           return toToolResult({ content: "历史数据不足，无法进行回测", isError: true });

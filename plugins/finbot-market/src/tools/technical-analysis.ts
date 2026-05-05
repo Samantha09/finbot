@@ -122,20 +122,28 @@ export function calcBOLL(closes: number[], period: number = 20): { upper: number
 export function calcKDJ(klines: Kline[], period: number = 9): { k: number; d: number; j: number } | null {
   if (klines.length < period) return null;
 
-  const recent = klines.slice(-period);
-  const highest = Math.max(...recent.map((k) => k.high));
-  const lowest = Math.min(...recent.map((k) => k.low));
-  const close = recent[recent.length - 1].close;
+  let k = 50;
+  let d = 50;
 
-  const range = highest - lowest;
-  if (range === 0) return { k: 50, d: 50, j: 50 };
+  for (let i = period - 1; i < klines.length; i++) {
+    const slice = klines.slice(i - period + 1, i + 1);
+    const highest = Math.max(...slice.map((k) => k.high));
+    const lowest = Math.min(...slice.map((k) => k.low));
+    const close = klines[i].close;
 
-  const rsv = ((close - lowest) / range) * 100;
+    const range = highest - lowest;
+    const rsv = range === 0 ? 50 : ((close - lowest) / range) * 100;
+
+    k = (2 / 3) * k + (1 / 3) * rsv;
+    d = (2 / 3) * d + (1 / 3) * k;
+  }
+
+  const j = 3 * k - 2 * d;
 
   return {
-    k: +rsv.toFixed(2),
-    d: +(50 * 2 / 3 + rsv / 3).toFixed(2),
-    j: +(3 * rsv - 2 * (50 * 2 / 3 + rsv / 3)).toFixed(2),
+    k: +k.toFixed(2),
+    d: +d.toFixed(2),
+    j: +j.toFixed(2),
   };
 }
 
@@ -189,7 +197,7 @@ export function createTechnicalAnalysisTool(): AnyAgentTool {
       };
 
       try {
-        const klt = period === "weekly" ? "101" : "101";
+        const klt = period === "weekly" ? "102" : "101";
         const klines = await fetchKlines(symbol, 120, klt);
         const closes = klines.map((k) => k.close);
         const selected = indicators?.length ? indicators : ["MA", "RSI", "MACD", "BOLL", "KDJ"];
