@@ -1,0 +1,32 @@
+{
+  "id": "finbot-guard",
+  "name": "FinBot Guard",
+  "description": "FinBot 安全护栏插件，提供工具参数风险检测和敏感数据脱敏",
+  "enabledByDefault": true,
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "detectionMode": {
+        "type": "string",
+        "enum": ["keyword", "off"],
+        "default": "keyword",
+        "description": "风险检测模式"
+      },
+      "customHighRiskKeywords": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "自定义高危关键词"
+      },
+      "customMediumRiskKeywords": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "自定义中危关键词"
+      },
+      "sensitiveFields": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "额外敏感字段名"
+      }
+    }
+  }
+}
