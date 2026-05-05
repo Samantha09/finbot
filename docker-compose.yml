@@ -9,6 +9,7 @@ services:
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-finbot-local-token}
     volumes:
       - finbot-data:/root/.openclaw
+      - ./workspace/backtest-reports:/root/.openclaw/workspace/backtest-reports
     network_mode: host
     restart: unless-stopped
 
