@@ -36,7 +36,8 @@
     "entries": {
       "bonjour": { "enabled": false },
       "finbot-market": { "enabled": true },
-      "finbot-audit": { "enabled": true }
+      "finbot-audit": { "enabled": true },
+      "finbot-guard": { "enabled": true }
     }
   }
 }
