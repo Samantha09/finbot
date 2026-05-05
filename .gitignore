@@ -31,3 +31,6 @@ Thumbs.db
 
 # Git worktrees
 .worktrees/
+
+# Generated backtest reports
+workspace/backtest-reports/
