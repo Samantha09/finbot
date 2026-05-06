@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { patchFetch, unpatchFetch, setToolContext, getToolContext } from "./fetch-patch.js";
+import { patchFetch, unpatchFetch, runWithToolContext, getToolContext } from "./fetch-patch.js";
 import { TokenBucket } from "./token-bucket.js";
 import { CircuitBreaker } from "./circuit-breaker.js";
 import { defaultConfig } from "./config.js";
@@ -68,9 +68,11 @@ describe("fetch-patch", () => {
 
     patchFetch({ domainBuckets: {}, circuitBreakers: {}, retryConfig: defaultConfig.retry });
 
-    const cleanup = setToolContext("marketQuery");
-    expect(getToolContext()).toBe("marketQuery");
-    cleanup();
+    const result = runWithToolContext("marketQuery", () => {
+      expect(getToolContext()).toBe("marketQuery");
+      return "done";
+    });
+    expect(result).toBe("done");
     expect(getToolContext()).toBeUndefined();
   });
 });

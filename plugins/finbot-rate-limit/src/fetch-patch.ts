@@ -6,9 +6,8 @@ import { CircuitOpenError, type RetryConfig } from "./types.js";
 
 const toolContext = new AsyncLocalStorage<string>();
 
-export function setToolContext(toolName: string): () => void {
-  toolContext.enterWith(toolName);
-  return () => toolContext.disable();
+export function runWithToolContext<T>(toolName: string, fn: () => T): T {
+  return toolContext.run(toolName, fn);
 }
 
 export function getToolContext(): string | undefined {
@@ -84,7 +83,7 @@ export function patchFetch(options: PatchOptions): void {
     return retryWithBackoff(
       async () => {
         const response = await originalFetch(input, init);
-        if (response.ok || response.status === 429) {
+        if (response.ok) {
           if (circuit) circuit.recordSuccess();
         } else if (response.status >= 500) {
           if (circuit) circuit.recordFailure();

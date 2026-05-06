@@ -22,7 +22,7 @@ export class TokenBucket {
       }
       const needed = tokens - this.tokens;
       const waitMs = (needed / this.refillRate) * 1000;
-      await new Promise((resolve) => setTimeout(resolve, Math.min(waitMs, 100)));
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
   }
 

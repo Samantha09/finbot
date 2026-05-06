@@ -2,7 +2,7 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import type { AnyAgentTool } from "openclaw/plugin-sdk/plugin-entry";
 import { TokenBucket } from "./token-bucket.js";
 import { CircuitBreaker } from "./circuit-breaker.js";
-import { patchFetch, setToolContext } from "./fetch-patch.js";
+import { patchFetch, runWithToolContext } from "./fetch-patch.js";
 import { mergeConfig } from "./config.js";
 import type { RateLimitConfig } from "./types.js";
 
@@ -45,12 +45,7 @@ export default definePluginEntry({
           // Acquire tool-level token
           await toolBucket.acquire();
           // Set tool context for fetch patch
-          const cleanup = setToolContext(tool.name);
-          try {
-            return await tool.execute(toolCallId, params);
-          } finally {
-            cleanup();
-          }
+          return await runWithToolContext(tool.name, () => tool.execute(toolCallId, params));
         },
       };
 
