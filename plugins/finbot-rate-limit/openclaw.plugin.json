@@ -1,0 +1,48 @@
+{
+  "id": "finbot-rate-limit",
+  "name": "FinBot Rate Limit",
+  "description": "FinBot 限流熔断插件，为金融 API 提供统一限流、退避和熔断保护",
+  "enabledByDefault": true,
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "domainBuckets": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "maxTokens": { "type": "number" },
+            "refillRate": { "type": "number" }
+          }
+        },
+        "description": "域名级别令牌桶配置"
+      },
+      "toolBucket": {
+        "type": "object",
+        "properties": {
+          "maxTokens": { "type": "number" },
+          "refillRate": { "type": "number" }
+        },
+        "description": "工具级别令牌桶配置"
+      },
+      "circuit": {
+        "type": "object",
+        "properties": {
+          "threshold": { "type": "number" },
+          "cooldownMs": { "type": "number" }
+        },
+        "description": "熔断器配置"
+      },
+      "retry": {
+        "type": "object",
+        "properties": {
+          "maxRetries": { "type": "number" },
+          "baseDelayMs": { "type": "number" },
+          "maxDelayMs": { "type": "number" },
+          "jitter": { "type": "boolean" }
+        },
+        "description": "退避重试配置"
+      }
+    }
+  }
+}

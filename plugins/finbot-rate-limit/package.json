@@ -1,0 +1,24 @@
+{
+  "name": "finbot-rate-limit",
+  "version": "1.0.0",
+  "description": "FinBot 限流熔断插件",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": "./dist/index.js" },
+  "files": ["dist", "openclaw.plugin.json"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "peerDependencies": { "openclaw": ">=2026.4.24" },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.1"
+  },
+  "license": "MIT",
+  "type": "commonjs",
+  "openclaw": { "extensions": ["./dist/index.js"] }
+}
