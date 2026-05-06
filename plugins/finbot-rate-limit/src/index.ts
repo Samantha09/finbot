@@ -35,7 +35,7 @@ export default definePluginEntry({
 
     api.registerTool = (tool: AnyAgentTool | Function, opts?) => {
       if (typeof tool === "function") {
-        originalRegisterTool(tool as AnyAgentTool, opts);
+        originalRegisterTool(tool as unknown as AnyAgentTool, opts);
         return;
       }
 

@@ -25,7 +25,7 @@ describe("finbot-rate-limit plugin", () => {
       registerTool: originalRegisterTool,
     };
 
-    plugin.register(api);
+    plugin.register(api as unknown as Parameters<typeof plugin.register>[0]);
 
     const mockTool = {
       name: "marketQuery",
@@ -49,7 +49,7 @@ describe("finbot-rate-limit plugin", () => {
       registerTool: originalRegisterTool,
     };
 
-    plugin.register(api);
+    plugin.register(api as unknown as Parameters<typeof plugin.register>[0]);
 
     const fnTool = vi.fn();
     api.registerTool(fnTool);
