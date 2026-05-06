@@ -31,6 +31,6 @@ export class TokenBucket {
     const elapsedSec = (now - this.lastRefill) / 1000;
     const newTokens = elapsedSec * this.refillRate;
     this.tokens = Math.min(this.maxTokens, this.tokens + newTokens);
-    this.lastRefill = now;
+    this.lastRefill += Math.floor(elapsedSec * 1000);
   }
 }
