@@ -21,6 +21,11 @@ COPY plugins/finbot-guard/src/ plugins/finbot-guard/src/
 
 RUN cd plugins/finbot-guard && npm install && npm run build && npm run test:ci
 
+COPY plugins/finbot-rate-limit/package.json plugins/finbot-rate-limit/tsconfig.json plugins/finbot-rate-limit/openclaw.plugin.json plugins/finbot-rate-limit/
+COPY plugins/finbot-rate-limit/src/ plugins/finbot-rate-limit/src/
+
+RUN cd plugins/finbot-rate-limit && npm install && npm run build && npm run test:ci
+
 # Copy built-in skills
 COPY skills/ /app/skills/
 
