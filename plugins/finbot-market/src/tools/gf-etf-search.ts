@@ -109,8 +109,8 @@ function formatEtfList(items: GfEtfItem[]): string {
     const track = item.trakName || item.trakType || "N/A";
     const roc1m = formatPercent(item.roc1m);
     const roc1y = formatPercent(item.roc1y);
-    const pePct = item.pePercent !== undefined ? `${item.pePercent.toFixed(1)}%` : "N/A";
-    const scale = item.assetScale !== undefined ? `${(item.assetScale / 1e8).toFixed(2)}` : "N/A";
+    const pePct = item.pePercent != null ? `${item.pePercent.toFixed(1)}%` : "N/A";
+    const scale = item.assetScale != null ? `${(item.assetScale / 1e8).toFixed(2)}` : "N/A";
     const temp = item.indexTempType || "N/A";
     lines.push(`| ${code} | ${name} | ${track} | ${roc1m} | ${roc1y} | ${pePct} | ${scale} | ${temp} |`);
   }

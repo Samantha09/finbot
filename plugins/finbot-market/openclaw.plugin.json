@@ -21,7 +21,8 @@
       "etfAnalysis",
       "macroAnalysis",
       "sentimentAnalysis",
-      "marketHeatmap"
+      "marketHeatmap",
+      "gfEtfSearch"
     ]
   }
 }
