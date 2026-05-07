@@ -12,6 +12,7 @@ import { createEtfAnalysisTool } from "./tools/etf-analysis.js";
 import { createMacroAnalysisTool } from "./tools/macro-analysis.js";
 import { createSentimentAnalysisTool } from "./tools/sentiment-analysis.js";
 import { createMarketHeatmapTool } from "./tools/market-heatmap.js";
+import { createGfEtfSearchTool } from "./tools/gf-etf-search.js";
 
 export default definePluginEntry({
   id: "finbot-market",
@@ -31,5 +32,6 @@ export default definePluginEntry({
     api.registerTool(createMacroAnalysisTool());
     api.registerTool(createSentimentAnalysisTool());
     api.registerTool(createMarketHeatmapTool());
+    api.registerTool(createGfEtfSearchTool());
   },
 });
