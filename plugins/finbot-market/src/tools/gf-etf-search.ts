@@ -60,11 +60,11 @@ interface GfEtfItem {
 }
 
 interface GfApiResponse {
-  code: number;
-  message: string;
   data?: {
-    list?: GfEtfItem[];
-    total?: number;
+    data?: {
+      count?: number;
+      fundList?: GfEtfItem[];
+    };
   };
 }
 
@@ -160,16 +160,15 @@ export function createGfEtfSearchTool(): AnyAgentTool {
           });
         }
 
-        const data = await fetchGfEtfList(args);
+        const response = await fetchGfEtfList(args);
 
-        if (data.code !== 0 || !data.data?.list) {
+        const items = response.data?.data?.fundList;
+        if (!items) {
           return toToolResult({
-            content: `查询失败: ${data.message || "未知错误"}`,
+            content: "查询失败: 接口返回异常",
             isError: true,
           });
         }
-
-        const items = data.data.list;
         if (items.length === 0) {
           return toToolResult({
             content: "未找到符合条件的 ETF，请放宽筛选条件后重试。",

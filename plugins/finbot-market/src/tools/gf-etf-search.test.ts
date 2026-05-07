@@ -16,45 +16,44 @@ describe("gfEtfSearch", () => {
 
     const mockFetch = vi.fn().mockResolvedValue({
       json: async () => ({
-        code: 0,
-        message: "success",
         data: {
-          list: [
-            {
-              tradeCode: "510050",
-              secuAbbr: "50ETF",
-              extName: "华夏上证50ETF",
-              exchangeCode: "101",
-              fiInfoName: "上证50",
-              fiInfoCode: "000016",
-              fundSize: 5000000000,
-              assetScale: 5000000000,
-              pe: 10,
-              pePercent: 30,
-              pb: 1.2,
-              pbPercent: 25,
-              roc: 0.5,
-              roc1w: 1.2,
-              roc1m: 5.0,
-              roc6m: 10.0,
-              roc1y: 20.0,
-              netMainForce1d: 1000000,
-              netMainForce5d: 5000000,
-              premium: -0.1,
-              indexTempType: "low",
-              trakName: "宽基",
-              trakType: "宽基",
-            },
-          ],
-          total: 1,
+          data: {
+            count: 1,
+            fundList: [
+              {
+                tradeCode: "510050",
+                secuAbbr: "50ETF",
+                extName: "华夏上证50ETF",
+                exchangeCode: "101",
+                fiInfoName: "上证50",
+                fiInfoCode: "000016",
+                fundSize: 5000000000,
+                assetScale: 5000000000,
+                pe: 10,
+                pePercent: 30,
+                pb: 1.2,
+                pbPercent: 25,
+                roc: 0.5,
+                roc1w: 1.2,
+                roc1m: 5.0,
+                roc6m: 10.0,
+                roc1y: 20.0,
+                netMainForce1d: 1000000,
+                netMainForce5d: 5000000,
+                premium: -0.1,
+                indexTempType: "low",
+                trakName: "宽基",
+                trakType: "宽基",
+              },
+            ],
+          },
         },
       }),
     } as unknown as Response);
     vi.stubGlobal("fetch", mockFetch);
 
     const result = await fetchGfEtfList({ trakType: "宽基", limit: 5 });
-    expect(result.code).toBe(0);
-    expect(result.data?.list).toHaveLength(1);
+    expect(result.data?.data?.fundList).toHaveLength(1);
     expect(mockFetch).toHaveBeenCalledWith(
       "https://mcp-api.gf.com.cn/gf-skills/skills/mcp/call",
       expect.objectContaining({
@@ -67,13 +66,13 @@ describe("gfEtfSearch", () => {
     );
   });
 
-  it("should return error when API returns non-zero code", async () => {
+  it("should return error when API returns empty data", async () => {
     vi.stubEnv("GF_SKILLS_APIKEY", "test-key");
 
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
-        json: async () => ({ code: 1001, message: "参数错误" }),
+        json: async () => ({ data: null }),
       }),
     );
 
@@ -82,7 +81,7 @@ describe("gfEtfSearch", () => {
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
     expect(parsed.isError).toBe(true);
-    expect(parsed.text).toContain("参数错误");
+    expect(parsed.text).toContain("接口返回异常");
   });
 
   it("should return empty message when no results", async () => {
@@ -92,9 +91,12 @@ describe("gfEtfSearch", () => {
       "fetch",
       vi.fn().mockResolvedValue({
         json: async () => ({
-          code: 0,
-          message: "success",
-          data: { list: [], total: 0 },
+          data: {
+            data: {
+              count: 0,
+              fundList: [],
+            },
+          },
         }),
       }),
     );
