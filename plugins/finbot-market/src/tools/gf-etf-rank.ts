@@ -33,15 +33,15 @@ interface GfEtfRankItem {
   name: string;
   ext_name: string;
   exchange: number;
-  roc: number;
-  fiveRoc: number;
-  volume: number;
-  cashFlow: number;
-  turnover_rate: number;
-  fundSize: number;
+  roc: number | string;
+  fiveRoc: number | string;
+  volume: number | string;
+  cashFlow: number | string;
+  turnover_rate: number | string;
+  fundSize: number | string;
   trackIndexName: string;
-  continueRiseDay: number;
-  premium: number;
+  continueRiseDay: number | string;
+  premium: number | string;
 }
 
 interface GfRankApiResponse {
@@ -50,15 +50,23 @@ interface GfRankApiResponse {
   };
 }
 
-function formatPercent(value: number | undefined): string {
-  if (value === undefined || value === null || Number.isNaN(value)) return "N/A";
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
+function toNum(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isNaN(n) ? undefined : n;
 }
 
-function formatNumber(value: number | undefined, unit = ""): string {
-  if (value === undefined || value === null || Number.isNaN(value)) return "N/A";
-  return `${value.toFixed(2)}${unit}`;
+function formatPercent(value: unknown): string {
+  const n = toNum(value);
+  if (n === undefined) return "N/A";
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}%`;
+}
+
+function formatNumber(value: unknown, unit = ""): string {
+  const n = toNum(value);
+  if (n === undefined) return "N/A";
+  return `${n.toFixed(2)}${unit}`;
 }
 
 function getRankTypeLabel(type: number): string {
@@ -92,9 +100,11 @@ function formatEtfRankList(items: GfEtfRankItem[], type: number): string {
     const volume = formatNumber(item.volume, " 万");
     const cashFlow = formatNumber(item.cashFlow, " 万");
     const turnover = formatPercent(item.turnover_rate);
-    const scale = item.fundSize != null ? `${(item.fundSize / 1e8).toFixed(2)} 亿` : "N/A";
+    const scaleNum = toNum(item.fundSize);
+    const scale = scaleNum !== undefined ? `${(scaleNum / 1e8).toFixed(2)} 亿` : "N/A";
     const indexName = item.trackIndexName || "N/A";
-    const contDay = item.continueRiseDay != null ? `${item.continueRiseDay} 天` : "N/A";
+    const contDayNum = toNum(item.continueRiseDay);
+    const contDay = contDayNum !== undefined ? `${contDayNum} 天` : "N/A";
     const premium = formatPercent(item.premium);
 
     lines.push(`**${code} | ${name}（${mkt}）**`);
