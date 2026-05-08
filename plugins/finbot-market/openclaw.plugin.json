@@ -26,7 +26,8 @@
       "sentimentAnalysis",
       "marketHeatmap",
       "gfEtfSearch",
-      "gfEtfSuperFund"
+      "gfEtfSuperFund",
+      "gfEtfRank"
     ]
   }
 }
