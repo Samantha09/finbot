@@ -31,7 +31,8 @@
       "gfStockF10",
       "gfFundDetail",
       "gfStockValuation",
-      "gfStockFinanceCompare"
+      "gfStockFinanceCompare",
+      "fundSelectionStrategy"
     ]
   }
 }
