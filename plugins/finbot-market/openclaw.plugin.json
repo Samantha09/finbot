@@ -27,7 +27,8 @@
       "marketHeatmap",
       "gfEtfSearch",
       "gfEtfSuperFund",
-      "gfEtfRank"
+      "gfEtfRank",
+      "gfStockF10"
     ]
   }
 }
