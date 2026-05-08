@@ -29,7 +29,9 @@
       "gfEtfSuperFund",
       "gfEtfRank",
       "gfStockF10",
-      "gfFundDetail"
+      "gfFundDetail",
+      "gfStockValuation",
+      "gfStockFinanceCompare"
     ]
   }
 }

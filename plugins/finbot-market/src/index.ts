@@ -17,6 +17,8 @@ import { createGfEtfSuperFundTool } from "./tools/gf-etf-super-fund.js";
 import { createGfEtfRankTool } from "./tools/gf-etf-rank.js";
 import { createGfStockF10Tool } from "./tools/gf-stock-f10.js";
 import { createGfFundDetailTool } from "./tools/gf-fund-detail.js";
+import { createGfStockValuationTool } from "./tools/gf-stock-valuation.js";
+import { createGfStockFinanceCompareTool } from "./tools/gf-stock-finance-compare.js";
 
 export default definePluginEntry({
   id: "finbot-market",
@@ -41,5 +43,7 @@ export default definePluginEntry({
     api.registerTool(createGfEtfRankTool());
     api.registerTool(createGfStockF10Tool());
     api.registerTool(createGfFundDetailTool());
+    api.registerTool(createGfStockValuationTool());
+    api.registerTool(createGfStockFinanceCompareTool());
   },
 });
