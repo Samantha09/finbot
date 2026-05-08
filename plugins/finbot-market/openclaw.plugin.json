@@ -3,6 +3,9 @@
   "name": "FinBot Market",
   "description": "FinBot 金融数据查询与分析插件",
   "enabledByDefault": true,
+  "activation": {
+    "onStartup": true
+  },
   "configSchema": {
     "type": "object",
     "properties": {}
@@ -22,7 +25,8 @@
       "macroAnalysis",
       "sentimentAnalysis",
       "marketHeatmap",
-      "gfEtfSearch"
+      "gfEtfSearch",
+      "gfEtfSuperFund"
     ]
   }
 }
