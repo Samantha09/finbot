@@ -28,7 +28,8 @@
       "gfEtfSearch",
       "gfEtfSuperFund",
       "gfEtfRank",
-      "gfStockF10"
+      "gfStockF10",
+      "gfFundDetail"
     ]
   }
 }
