@@ -20,6 +20,9 @@ import { createGfFundDetailTool } from "./tools/gf-fund-detail.js";
 import { createGfStockValuationTool } from "./tools/gf-stock-valuation.js";
 import { createGfStockFinanceCompareTool } from "./tools/gf-stock-finance-compare.js";
 import { createFundSelectionStrategyTool } from "./tools/fund-selection-strategy.js";
+import { createEtfRotationStrategyTool } from "./tools/etf-rotation-strategy.js";
+import { createEtfTimingSignalTool } from "./tools/etf-timing-signal.js";
+import { createEtfSmartInvestTool } from "./tools/etf-smart-invest.js";
 
 export default definePluginEntry({
   id: "finbot-market",
@@ -47,5 +50,8 @@ export default definePluginEntry({
     api.registerTool(createGfStockValuationTool());
     api.registerTool(createGfStockFinanceCompareTool());
     api.registerTool(createFundSelectionStrategyTool());
+    api.registerTool(createEtfRotationStrategyTool());
+    api.registerTool(createEtfTimingSignalTool());
+    api.registerTool(createEtfSmartInvestTool());
   },
 });
