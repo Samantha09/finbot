@@ -240,7 +240,7 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
     name: "etfRotationStrategy",
     label: "ETF 轮动策略",
     description:
-      "基于动量、资金流向、估值和质量四个维度，对指定 ETF 列表进行评分排序，输出轮动建议。支持短线/中线/长线三种周期权重配置。",
+      "ETF 主题轮动策略工具。默认 auto 模式自动从全市场按主题（宽基、科技、医药、消费、新能源、金融地产、红利、港股、美股、商品等）筛选代表性 ETF 建池，然后基于动量、资金流向、估值和质量四个维度评分排序，输出主题强弱分布和调仓建议。支持短线/中线/长线三种周期权重。也可通过 custom 模式传入自选 ETF 列表进行评分。",
     parameters: EtfRotationStrategySchema,
     execute: async (_toolCallId, params) => {
       try {
