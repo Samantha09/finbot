@@ -8,7 +8,7 @@ const EtfRotationStrategySchema = {
     symbols: {
       type: "array" as const,
       items: { type: "string" as const },
-      description: "ETF 代码列表，如 [\"510050.SH\", \"159915.SZ\"]",
+      description: "ETF 代码列表，如 [\"510050.SH\", \"159915.SZ\"]。mode=custom 时必填。",
     },
     period: {
       type: "string" as const,
@@ -19,8 +19,13 @@ const EtfRotationStrategySchema = {
       type: "number" as const,
       description: "最大返回结果数，默认全部",
     },
+    mode: {
+      type: "string" as const,
+      enum: ["auto", "custom"],
+      description: "模式: auto=自动从全市场按主题选基(默认), custom=使用用户提供的 symbols",
+    },
   },
-  required: ["symbols", "period"],
+  required: ["period"],
 };
 
 type Period = "short" | "medium" | "long";
@@ -119,6 +124,50 @@ function parseSymbol(symbol: string): { tradeCode: string; exchange: string } | 
   return { tradeCode: match[1], exchange: match[2].toUpperCase() };
 }
 
+const THEME_RULES: Array<{ theme: string; keywords: string[] }> = [
+  { theme: "港股", keywords: ["港股", "恒生", "H股", "香港", "港", "中概"] },
+  { theme: "美股", keywords: ["纳指", "标普", "美国", "道琼斯", "美股", "纳斯达克"] },
+  { theme: "宽基", keywords: ["50", "300", "500", "1000", "中证", "沪深", "上证", "深证", "创业板", "科创", "A50", "A100", "A500"] },
+  { theme: "科技", keywords: ["科技", "芯片", "半导体", "人工智能", "AI", "TMT", "通信", "5G", "机器人"] },
+  { theme: "医药", keywords: ["医药", "医疗", "生物", "健康", "器械", "疫苗"] },
+  { theme: "消费", keywords: ["消费", "白酒", "食品", "家电", "饮料", "农业", "畜牧", "养殖", "旅游"] },
+  { theme: "新能源", keywords: ["新能源", "光伏", "碳中和", "电池", "储能", "锂电", "智能车", "新能源车", "绿色电力"] },
+  { theme: "金融地产", keywords: ["金融", "银行", "地产", "证券", "保险", "基建", "建筑"] },
+  { theme: "红利", keywords: ["红利", "股息", "高股息", "低波红利"] },
+  { theme: "商品", keywords: ["黄金", "白银", "有色", "豆粕", "能源", "煤炭", "钢铁", "石油", "商品", "矿业", "稀土"] },
+];
+
+export function detectTheme(name: string): string {
+  const lower = name.toLowerCase();
+  for (const rule of THEME_RULES) {
+    for (const kw of rule.keywords) {
+      if (lower.includes(kw.toLowerCase())) return rule.theme;
+    }
+  }
+  return "其他";
+}
+
+export function buildAutoPool(fundList: Record<string, unknown>[]): Record<string, unknown>[] {
+  const themeMap = new Map<string, Record<string, unknown>>();
+  for (const item of fundList) {
+    const name = String(item.secuAbbr ?? item.extName ?? "");
+    const code = String(item.tradeCode ?? "");
+    if (!name || !code) continue;
+    const theme = detectTheme(name);
+    const scale = typeof item.assetScale === "number" ? item.assetScale : Number(item.assetScale);
+    const existing = themeMap.get(theme);
+    if (!existing) {
+      themeMap.set(theme, item);
+    } else {
+      const existingScale = typeof existing.assetScale === "number" ? existing.assetScale : Number(existing.assetScale);
+      if (!Number.isNaN(scale) && !Number.isNaN(existingScale) && scale > existingScale) {
+        themeMap.set(theme, item);
+      }
+    }
+  }
+  return Array.from(themeMap.values());
+}
+
 function scoreEtf(item: Record<string, unknown>, period: Period): EtfScoreItem {
   const code = String(item.tradeCode ?? "N/A");
   const name = String(item.secuAbbr ?? item.extName ?? "N/A");
@@ -195,9 +244,10 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
     parameters: EtfRotationStrategySchema,
     execute: async (_toolCallId, params) => {
       try {
-        const symbols = params.symbols as string[];
-        const period = params.period as Period;
-        const maxResults = typeof params.maxResults === "number" ? params.maxResults : undefined;
+        const p = params as Record<string, unknown>;
+        const period = p.period as Period;
+        const maxResults = typeof p.maxResults === "number" ? p.maxResults : undefined;
+        const mode = (p.mode as string) || "auto";
 
         if (!["short", "medium", "long"].includes(period)) {
           return toToolResult({
@@ -206,46 +256,78 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
           });
         }
 
-        if (!Array.isArray(symbols) || symbols.length === 0) {
-          return toToolResult({
-            content: "请至少提供一个 ETF 代码",
-            isError: true,
-          });
-        }
-
-        const validSymbols: string[] = [];
-        for (const sym of symbols) {
-          const parsed = parseSymbol(sym);
-          if (parsed) {
-            validSymbols.push(parsed.tradeCode);
-          }
-        }
-
-        if (validSymbols.length === 0) {
-          return toToolResult({
-            content: "所有提供的代码格式均无效，请使用如 510050.SH 的格式",
-            isError: true,
-          });
-        }
-
         const scoredItems: EtfScoreItem[] = [];
-        for (const tradeCode of validSymbols) {
-          try {
-            const response = await fetchGfEtfList({ tradeCode });
-            const fundList = response.data?.data?.fundList;
-            if (!fundList || fundList.length === 0) {
+
+        if (mode === "custom") {
+          const symbols = p.symbols as string[];
+          if (!Array.isArray(symbols) || symbols.length === 0) {
+            return toToolResult({
+              content: "custom 模式下请至少提供一个 ETF 代码",
+              isError: true,
+            });
+          }
+
+          const validSymbols: string[] = [];
+          for (const sym of symbols) {
+            const parsed = parseSymbol(sym);
+            if (parsed) {
+              validSymbols.push(parsed.tradeCode);
+            }
+          }
+
+          if (validSymbols.length === 0) {
+            return toToolResult({
+              content: "所有提供的代码格式均无效，请使用如 510050.SH 的格式",
+              isError: true,
+            });
+          }
+
+          for (const tradeCode of validSymbols) {
+            try {
+              const response = await fetchGfEtfList({ tradeCode });
+              const fundList = response.data?.data?.fundList;
+              if (!fundList || fundList.length === 0) {
+                continue;
+              }
+              for (const item of fundList) {
+                const raw = item as unknown as Record<string, unknown>;
+                const itemCode = String(raw.tradeCode ?? "");
+                if (itemCode === tradeCode) {
+                  const scored = scoreEtf(raw, period);
+                  scoredItems.push(scored);
+                  break;
+                }
+              }
+            } catch {
               continue;
             }
-            for (const item of fundList) {
-              const itemCode = String((item as Record<string, unknown>).tradeCode ?? "");
-              if (itemCode === tradeCode) {
-                const scored = scoreEtf(item as Record<string, unknown>, period);
-                scoredItems.push(scored);
-                break;
-              }
+          }
+        } else {
+          try {
+            const response = await fetchGfEtfList({ sort: "-assetScale", limit: 100 });
+            const fundList = response.data?.data?.fundList;
+            if (!fundList || fundList.length === 0) {
+              return toToolResult({
+                content: "自动选基失败：未能获取全市场 ETF 数据",
+                isError: true,
+              });
             }
-          } catch {
-            continue;
+            const pool = buildAutoPool(fundList as unknown as Record<string, unknown>[]);
+            if (pool.length === 0) {
+              return toToolResult({
+                content: "自动选基失败：未能从全市场筛选出有效 ETF",
+                isError: true,
+              });
+            }
+            for (const item of pool) {
+              const scored = scoreEtf(item, period);
+              scoredItems.push(scored);
+            }
+          } catch (err) {
+            return toToolResult({
+              content: `自动选基失败: ${err instanceof Error ? err.message : String(err)}`,
+              isError: true,
+            });
           }
         }
 
@@ -260,8 +342,49 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
 
         const results = maxResults !== undefined ? scoredItems.slice(0, maxResults) : scoredItems;
 
+        const periodLabel = period === "short" ? "短线" : period === "medium" ? "中线" : "长线";
         const lines: string[] = [];
-        lines.push(`## ETF 轮动策略评分结果（周期: ${period}）`);
+
+        lines.push(`## ETF 主题轮动策略（${periodLabel}）`);
+        lines.push("");
+
+        const strong = results.filter((r) => r.totalScore >= 75);
+        const hold = results.filter((r) => r.totalScore >= 60 && r.totalScore < 75);
+        const weak = results.filter((r) => r.totalScore >= 45 && r.totalScore < 60);
+        const avoid = results.filter((r) => r.totalScore < 45);
+
+        lines.push("### 主题强弱分布");
+        lines.push("");
+        if (strong.length > 0) {
+          lines.push(`- **强势主题（增持）：** ${strong.map((r) => `${r.name}(${r.code})`).join("、")}`);
+        }
+        if (hold.length > 0) {
+          lines.push(`- **中性主题（持有）：** ${hold.map((r) => `${r.name}(${r.code})`).join("、")}`);
+        }
+        if (weak.length > 0) {
+          lines.push(`- **弱势主题（减持）：** ${weak.map((r) => `${r.name}(${r.code})`).join("、")}`);
+        }
+        if (avoid.length > 0) {
+          lines.push(`- **回避主题（观望）：** ${avoid.map((r) => `${r.name}(${r.code})`).join("、")}`);
+        }
+        lines.push("");
+
+        lines.push("### 调仓建议");
+        lines.push("");
+        const advices: string[] = [];
+        if (strong.length > 0) {
+          advices.push(`当前 ${strong.map((r) => r.name).join("、")} 等主题动量与资金表现较强，建议择机加仓或切换至这些方向。`);
+        }
+        if (avoid.length > 0) {
+          advices.push(`${avoid.map((r) => r.name).join("、")} 等主题得分偏低，建议减仓或回避，等待轮动信号转强后再介入。`);
+        }
+        if (advices.length === 0) {
+          advices.push("各主题得分较为均衡，建议维持现有配置，等待明确的轮动信号。");
+        }
+        lines.push(advices.join("\n"));
+        lines.push("");
+
+        lines.push("### 详细评分");
         lines.push("");
         lines.push("| 排名 | 代码 | 名称 | 综合得分 | 动量 | 资金 | 估值 | 质量 | 建议 | 温度 |");
         lines.push("|------|------|------|----------|------|------|------|------|------|------|");
@@ -282,15 +405,6 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
               `${r.indexTempType} |`,
             ].join(" | ")
           );
-        }
-
-        lines.push("");
-        lines.push("### 详细分析");
-        lines.push("");
-
-        for (const r of results) {
-          lines.push(`- **${r.code} ${r.name}**：综合得分 ${r.totalScore.toFixed(2)}，建议「${r.advice}」`);
-          lines.push(`  - 动量得分 ${r.momentumScore.toFixed(2)}，资金得分 ${r.fundScore.toFixed(2)}，估值得分 ${r.valuationScore.toFixed(2)}，质量得分 ${r.qualityScore.toFixed(2)}`);
         }
 
         lines.push("");

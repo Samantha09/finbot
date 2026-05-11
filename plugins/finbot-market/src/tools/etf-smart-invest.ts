@@ -73,8 +73,9 @@ export function createEtfSmartInvestTool(): AnyAgentTool {
     parameters: EtfSmartInvestSchema,
     execute: async (_toolCallId, params) => {
       try {
-        const symbol = String(params.symbol || "");
-        const baseAmount = typeof params.baseAmount === "number" ? params.baseAmount : 1000;
+        const p = params as Record<string, unknown>;
+        const symbol = String(p.symbol || "");
+        const baseAmount = typeof p.baseAmount === "number" ? p.baseAmount : 1000;
 
         if (!symbol) {
           return toToolResult({
