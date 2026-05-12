@@ -23,6 +23,7 @@ import { createFundSelectionStrategyTool } from "./tools/fund-selection-strategy
 import { createEtfRotationStrategyTool } from "./tools/etf-rotation-strategy.js";
 import { createEtfTimingSignalTool } from "./tools/etf-timing-signal.js";
 import { createEtfSmartInvestTool } from "./tools/etf-smart-invest.js";
+import { createUpdatePositionTool, createGetPositionReportTool } from "./tools/position-management.js";
 
 export default definePluginEntry({
   id: "finbot-market",
@@ -53,5 +54,7 @@ export default definePluginEntry({
     api.registerTool(createEtfRotationStrategyTool());
     api.registerTool(createEtfTimingSignalTool());
     api.registerTool(createEtfSmartInvestTool());
+    api.registerTool(createUpdatePositionTool());
+    api.registerTool(createGetPositionReportTool());
   },
 });

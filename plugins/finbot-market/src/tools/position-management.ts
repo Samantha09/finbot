@@ -383,8 +383,9 @@ export function createGetPositionReportTool(): AnyAgentTool {
         let record: DailyRecord | null = null;
         let date: string | undefined;
 
-        if (params.date && typeof params.date === "string") {
-          date = params.date;
+        const p = params as { date?: string };
+        if (p.date && typeof p.date === "string") {
+          date = p.date;
           record = await loadRecord(date);
         } else {
           record = await loadLatestRecord();

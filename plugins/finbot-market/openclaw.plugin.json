@@ -32,7 +32,12 @@
       "gfFundDetail",
       "gfStockValuation",
       "gfStockFinanceCompare",
-      "fundSelectionStrategy"
+      "fundSelectionStrategy",
+      "etfRotationStrategy",
+      "etfTimingSignal",
+      "etfSmartInvest",
+      "updatePosition",
+      "getPositionReport"
     ]
   }
 }
