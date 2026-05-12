@@ -202,6 +202,10 @@ const GetPositionReportSchema = {
       type: "string" as const,
       description: "日期，如 2026-05-12。默认取最新记录。",
     },
+    days: {
+      type: "number" as const,
+      description: "历史回顾天数，如 7 或 30。提供后返回最近 N 天的持仓趋势汇总，而非单日报告。",
+    },
   },
 };
 
@@ -238,6 +242,28 @@ async function findPreviousDate(currentDate: string): Promise<string | null> {
     return dates.length > 0 ? dates[dates.length - 1] : null;
   } catch (e: unknown) {
     if (e instanceof Error && (e as any).code === "ENOENT") return null;
+    throw e;
+  }
+}
+
+async function loadRecentRecords(days: number): Promise<DailyRecord[]> {
+  try {
+    const entries = await fs.readdir(DATA_DIR);
+    const dates = entries
+      .filter((f) => f.endsWith(".json") && f !== "latest.json")
+      .map((f) => f.replace(/\.json$/, ""))
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort()
+      .slice(-days);
+
+    const records: DailyRecord[] = [];
+    for (const date of dates) {
+      const record = await loadRecord(date);
+      if (record) records.push(record);
+    }
+    return records;
+  } catch (e: unknown) {
+    if (e instanceof Error && (e as any).code === "ENOENT") return [];
     throw e;
   }
 }
@@ -372,18 +398,112 @@ function formatReport(current: DailyRecord, previous: DailyRecord | null): strin
   return lines.join("\n");
 }
 
+function formatHistoryReport(records: DailyRecord[]): string {
+  if (records.length === 0) {
+    return "未找到持仓记录。";
+  }
+
+  const lines: string[] = [];
+  const first = records[0];
+  const last = records[records.length - 1];
+  lines.push(`## 持仓历史回顾（${first.date} ~ ${last.date}，共 ${records.length} 天）`);
+  lines.push("");
+
+  lines.push("### 资产趋势");
+  lines.push(`| 日期 | 总资产 | 持仓市值 | 仓位 | 当日盈亏 |`);
+  lines.push(`|------|--------|----------|------|----------|`);
+  for (const r of records) {
+    const s = r.summary;
+    lines.push(
+      `| ${r.date} | ${formatNumber(s.totalAsset)} | ${formatNumber(s.holdingMarketValue)} | ${formatPercent(s.positionRatio)} | ${formatNumber(s.dailyProfit)} |`
+    );
+  }
+  lines.push("");
+
+  const assetChange = last.summary.totalAsset - first.summary.totalAsset;
+  const mvChange = (last.summary.holdingMarketValue ?? 0) - (first.summary.holdingMarketValue ?? 0);
+  lines.push("### 阶段统计");
+  lines.push(`- **区间天数**: ${records.length}`);
+  lines.push(`- **总资产变化**: ${assetChange >= 0 ? "+" : ""}${formatNumber(assetChange)}`);
+  lines.push(`- **持仓市值变化**: ${mvChange >= 0 ? "+" : ""}${formatNumber(mvChange)}`);
+
+  const totalTrades = records.reduce((sum, r) => sum + (r.trades?.length ?? 0), 0);
+  lines.push(`- **总成交笔数**: ${totalTrades}`);
+  lines.push("");
+
+  const allTrades: Trade[] = [];
+  for (const r of records) {
+    if (r.trades) {
+      for (const t of r.trades) {
+        allTrades.push(t);
+      }
+    }
+  }
+
+  if (allTrades.length > 0) {
+    lines.push("### 成交明细");
+    lines.push(`| 日期 | 时间 | 代码 | 方向 | 价格 | 数量 | 金额 |`);
+    lines.push(`|------|------|------|------|------|------|------|`);
+    for (const t of allTrades) {
+      const dir = t.direction === "buy" ? "买入" : "卖出";
+      lines.push(`| ${t.time ? t.time.split(" ")[0] : "-"} | ${t.time ? t.time.split(" ")[1] || t.time : "-"} | ${t.symbol} | ${dir} | ${formatNumber(t.price)} | ${t.quantity} | ${formatNumber(t.amount)} |`);
+    }
+    lines.push("");
+  }
+
+  lines.push("### 持仓变动汇总");
+  const positionMap = new Map<string, { name: string; firstQty: number; lastQty: number }>();
+  for (const r of records) {
+    for (const h of r.holdings) {
+      const entry = positionMap.get(h.symbol);
+      if (!entry) {
+        positionMap.set(h.symbol, { name: h.name, firstQty: h.quantity, lastQty: h.quantity });
+      } else {
+        entry.lastQty = h.quantity;
+      }
+    }
+  }
+
+  if (positionMap.size === 0) {
+    lines.push("无持仓记录");
+  } else {
+    for (const [symbol, info] of positionMap) {
+      const diff = info.lastQty - info.firstQty;
+      const sign = diff > 0 ? "+" : "";
+      lines.push(`- **${info.name}（${symbol}）**: ${info.firstQty} → ${info.lastQty}（${sign}${diff}）`);
+    }
+  }
+  lines.push("");
+
+  lines.push("⚠️ 不构成投资建议");
+  return lines.join("\n");
+}
+
 export function createGetPositionReportTool(): AnyAgentTool {
   return {
     name: "getPositionReport",
     label: "Get Position Report",
-    description: "获取持仓报告。支持指定日期或默认取最新记录，自动对比前一日持仓变化。",
+    description: "获取持仓报告。支持指定日期或默认取最新记录，自动对比前一日持仓变化。也支持传入 days 参数（如 7 或 30）获取最近 N 天的持仓历史趋势汇总。",
     parameters: GetPositionReportSchema,
     execute: async (_toolCallId, params) => {
       try {
+        const p = params as { date?: string; days?: number };
+
+        if (p.days && typeof p.days === "number" && p.days > 0) {
+          const records = await loadRecentRecords(p.days);
+          if (records.length === 0) {
+            return toToolResult({
+              content: "未找到持仓记录。请先使用 updatePosition 录入数据。",
+              isError: true,
+            });
+          }
+          const report = formatHistoryReport(records);
+          return toToolResult({ content: report });
+        }
+
         let record: DailyRecord | null = null;
         let date: string | undefined;
 
-        const p = params as { date?: string };
         if (p.date && typeof p.date === "string") {
           date = p.date;
           record = await loadRecord(date);

@@ -199,4 +199,44 @@ describe("getPositionReport tool", () => {
     expect(parsed.isError).toBe(false);
     expect(parsed.text).toContain("2026-05-12");
   });
+
+  it("returns historical report for days parameter", async () => {
+    await updateTool.execute("tc1", {
+      date: "2026-05-10",
+      holdings: [{ ...sampleHolding, quantity: 200 }],
+      trades: [],
+      summary: { ...sampleSummary, totalAsset: 120000, positionRatio: 0.92 },
+    });
+    await updateTool.execute("tc2", {
+      date: "2026-05-11",
+      holdings: [{ ...sampleHolding, quantity: 400 }],
+      trades: [{ ...sampleTrade, time: "10:00:00", quantity: 200 }],
+      summary: { ...sampleSummary, totalAsset: 122000, positionRatio: 0.93 },
+    });
+    await updateTool.execute("tc3", {
+      date: "2026-05-12",
+      holdings: [sampleHolding],
+      trades: [sampleTrade],
+      summary: sampleSummary,
+    });
+
+    const result = await reportTool.execute("tc4", { days: 7 });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("持仓历史回顾");
+    expect(parsed.text).toContain("2026-05-10");
+    expect(parsed.text).toContain("2026-05-12");
+    expect(parsed.text).toContain("阶段统计");
+    expect(parsed.text).toContain("持仓变动汇总");
+    expect(parsed.text).toContain("⚠️ 不构成投资建议");
+  });
+
+  it("returns error for historical report when no data exists", async () => {
+    const result = await reportTool.execute("tc1", { days: 7 });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(true);
+    expect(parsed.text).toContain("未找到");
+  });
 });
