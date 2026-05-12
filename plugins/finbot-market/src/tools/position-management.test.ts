@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as path from "path";
 import { createUpdatePositionTool, createGetPositionReportTool } from "./position-management.js";
 
 let fileMap: Map<string, string> = new Map();
@@ -23,7 +24,11 @@ vi.mock("fs/promises", () => ({
     return Promise.resolve(undefined);
   }),
   mkdir: vi.fn(() => Promise.resolve(undefined)),
-  readdir: vi.fn(() => Promise.resolve([])),
+  readdir: vi.fn((dirPath: string) => {
+    const keys = Array.from(fileMap.keys()).filter((k) => k.startsWith(dirPath));
+    const files = keys.map((k) => path.basename(k));
+    return Promise.resolve(files);
+  }),
 }));
 
 const sampleHolding = {
@@ -112,5 +117,86 @@ describe("updatePosition tool", () => {
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
     expect(parsed.isError).toBe(true);
+  });
+});
+
+describe("getPositionReport tool", () => {
+  let updateTool: ReturnType<typeof createUpdatePositionTool>;
+  let reportTool: ReturnType<typeof createGetPositionReportTool>;
+
+  beforeEach(() => {
+    updateTool = createUpdatePositionTool();
+    reportTool = createGetPositionReportTool();
+    fileMap = new Map();
+    vi.clearAllMocks();
+  });
+
+  it("tool metadata correct", () => {
+    expect(reportTool.name).toBe("getPositionReport");
+    expect(reportTool.parameters).toBeDefined();
+  });
+
+  it("returns error when no data exists", async () => {
+    const result = await reportTool.execute("tc1", { date: "2026-05-12" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(true);
+    expect(parsed.text).toContain("未找到");
+  });
+
+  it("generates report with holdings only (no previous day)", async () => {
+    await updateTool.execute("tc1", {
+      date: "2026-05-12",
+      holdings: [sampleHolding],
+      trades: [sampleTrade],
+      summary: sampleSummary,
+    });
+
+    const result = await reportTool.execute("tc2", { date: "2026-05-12" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("510310");
+    expect(parsed.text).toContain("沪深300ETF易方达");
+    expect(parsed.text).toContain("⚠️ 不构成投资建议");
+  });
+
+  it("detects position changes between two days", async () => {
+    const holdingDay1 = { ...sampleHolding, quantity: 200 };
+    await updateTool.execute("tc1", {
+      date: "2026-05-11",
+      holdings: [holdingDay1],
+      trades: [],
+      summary: { ...sampleSummary, totalAsset: 120000, positionRatio: 0.92 },
+    });
+
+    await updateTool.execute("tc2", {
+      date: "2026-05-12",
+      holdings: [sampleHolding],
+      trades: [sampleTrade],
+      summary: sampleSummary,
+    });
+
+    const result = await reportTool.execute("tc3", { date: "2026-05-12" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("+400");
+    expect(parsed.text).toContain("买入");
+  });
+
+  it("uses latest date when no date provided", async () => {
+    await updateTool.execute("tc1", {
+      date: "2026-05-12",
+      holdings: [sampleHolding],
+      trades: [],
+      summary: sampleSummary,
+    });
+
+    const result = await reportTool.execute("tc2", {});
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("2026-05-12");
   });
 });
