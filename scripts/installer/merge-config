@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+
+const OPENCLAW_HOME = process.env.OPENCLAW_HOME || path.join(require('os').homedir(), '.openclaw');
+const CONFIG_PATH = path.join(OPENCLAW_HOME, 'openclaw.json');
+const FINBOT_CONFIG_PATH = path.join(__dirname, 'openclaw.json');
+
+if (!fs.existsSync(CONFIG_PATH)) {
+  console.log('No existing openclaw.json found, copying FinBot template...');
+  fs.copyFileSync(FINBOT_CONFIG_PATH, CONFIG_PATH);
+  console.log('Done.');
+  process.exit(0);
+}
+
+const existing = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+const finbot = JSON.parse(fs.readFileSync(FINBOT_CONFIG_PATH, 'utf-8'));
+
+// Backup
+const backupPath = CONFIG_PATH + '.backup.' + new Date().toISOString().replace(/[:.]/g, '-');
+fs.copyFileSync(CONFIG_PATH, backupPath);
+console.log('Backup created:', backupPath);
+
+// Deep merge helper
+function deepMerge(target, source) {
+  for (const key of Object.keys(source)) {
+    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      if (!target[key] || typeof target[key] !== 'object') target[key] = {};
+      deepMerge(target[key], source[key]);
+    } else if (Array.isArray(source[key])) {
+      if (!target[key] || !Array.isArray(target[key])) target[key] = [];
+      for (const item of source[key]) {
+        if (!target[key].includes(item)) target[key].push(item);
+      }
+    } else {
+      target[key] = source[key];
+    }
+  }
+}
+
+// Merge FinBot-specific sections
+if (!existing.plugins) existing.plugins = {};
+if (!existing.plugins.load) existing.plugins.load = {};
+if (!existing.plugins.load.paths) existing.plugins.load.paths = [];
+if (!existing.plugins.allow) existing.plugins.allow = [];
+if (!existing.plugins.entries) existing.plugins.entries = {};
+if (!existing.agents) existing.agents = {};
+if (!existing.agents.defaults) existing.agents.defaults = {};
+
+// Add plugin paths
+for (const p of finbot.plugins.load.paths || []) {
+  if (!existing.plugins.load.paths.includes(p)) existing.plugins.load.paths.push(p);
+}
+
+// Add allowed plugins
+for (const p of finbot.plugins.allow || []) {
+  if (!existing.plugins.allow.includes(p)) existing.plugins.allow.push(p);
+}
+
+// Add plugin entries
+for (const [k, v] of Object.entries(finbot.plugins.entries || {})) {
+  existing.plugins.entries[k] = v;
+}
+
+// Only merge systemPromptOverride if user doesn't have one, or warn
+if (existing.agents.defaults.systemPromptOverride && existing.agents.defaults.systemPromptOverride.includes('FinBot')) {
+  console.log('System prompt already contains FinBot config, skipping.');
+} else if (existing.agents.defaults.systemPromptOverride) {
+  console.log('\nWARNING: You already have a custom systemPromptOverride.');
+  console.log('FinBot needs its system prompt to work correctly.');
+  console.log('Options:');
+  console.log('  1. Replace entirely (recommended for pure FinBot use)');
+  console.log('  2. Prepend FinBot rules to your existing prompt');
+  console.log('  3. Skip (you will need to manually configure tools in your prompt)');
+  process.stdout.write('\nChoose [1/2/3]: ');
+  process.stdin.setEncoding('utf8');
+  process.stdin.once('data', (chunk) => {
+    const choice = chunk.trim();
+    if (choice === '1') {
+      existing.agents.defaults.systemPromptOverride = finbot.agents.defaults.systemPromptOverride;
+      console.log('Replaced system prompt with FinBot config.');
+    } else if (choice === '2') {
+      existing.agents.defaults.systemPromptOverride =
+        finbot.agents.defaults.systemPromptOverride + '\n\n---\n\n' + existing.agents.defaults.systemPromptOverride;
+      console.log('Prepended FinBot rules to your existing prompt.');
+    } else {
+      console.log('Skipped. Please manually configure tool rules in your system prompt.');
+    }
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(existing, null, 2));
+    console.log('Config saved:', CONFIG_PATH);
+    process.exit(0);
+  });
+} else {
+  existing.agents.defaults.systemPromptOverride = finbot.agents.defaults.systemPromptOverride;
+  console.log('Installed FinBot system prompt.');
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(existing, null, 2));
+  console.log('Config saved:', CONFIG_PATH);
+}
+
+if (!process.stdin.isTTY) {
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(existing, null, 2));
+  console.log('Config saved:', CONFIG_PATH);
+}
