@@ -3,6 +3,9 @@
   "name": "FinBot Rate Limit",
   "description": "FinBot 限流熔断插件，为金融 API 提供统一限流、退避和熔断保护",
   "enabledByDefault": true,
+  "activation": {
+    "onStartup": true
+  },
   "configSchema": {
     "type": "object",
     "properties": {

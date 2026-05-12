@@ -24,6 +24,18 @@ const EtfRotationStrategySchema = {
       enum: ["auto", "custom"],
       description: "模式: auto=自动从全市场按主题选基(默认), custom=使用用户提供的 symbols",
     },
+    holdings: {
+      type: "array" as const,
+      items: {
+        type: "object" as const,
+        properties: {
+          symbol: { type: "string" as const, description: "ETF 代码，如 510300.SH" },
+          ratio: { type: "number" as const, description: "持仓比例，如 0.3 表示 30%" },
+        },
+        required: ["symbol"],
+      },
+      description: "当前持仓列表（可选）。提供后会基于你的实际持仓给出个性化的调入调出建议，如 [{\"symbol\":\"510300.SH\",\"ratio\":0.3}]",
+    },
   },
   required: ["period"],
 };
@@ -240,7 +252,7 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
     name: "etfRotationStrategy",
     label: "ETF 轮动策略",
     description:
-      "ETF 主题轮动策略工具。默认 auto 模式自动从全市场按主题（宽基、科技、医药、消费、新能源、金融地产、红利、港股、美股、商品等）筛选代表性 ETF 建池，然后基于动量、资金流向、估值和质量四个维度评分排序，输出主题强弱分布和调仓建议。支持短线/中线/长线三种周期权重。也可通过 custom 模式传入自选 ETF 列表进行评分。",
+      "ETF 主题轮动策略工具。默认 auto 模式自动从全市场按主题（宽基、科技、医药、消费、新能源、金融地产、红利、港股、美股、商品等）筛选代表性 ETF 建池，然后基于动量、资金流向、估值和质量四个维度评分排序，输出主题强弱分布和调仓建议。支持短线/中线/长线三种周期权重。也可通过 custom 模式传入自选 ETF 列表进行评分。如果用户询问'我该调仓吗'、'现在该怎么操作'等涉及具体操作的问题，必须先询问用户的当前持仓（ETF代码和比例），然后在调用此工具时传入 holdings 参数，才能得到基于持仓的个性化调入调出建议。",
     parameters: EtfRotationStrategySchema,
     execute: async (_toolCallId, params) => {
       try {
@@ -342,6 +354,10 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
 
         const results = maxResults !== undefined ? scoredItems.slice(0, maxResults) : scoredItems;
 
+        // 解析 holdings
+        const rawHoldings = p.holdings as Array<{ symbol: string; ratio?: number }> | undefined;
+        const holdings = Array.isArray(rawHoldings) ? rawHoldings : [];
+
         const periodLabel = period === "short" ? "短线" : period === "medium" ? "中线" : "长线";
         const lines: string[] = [];
 
@@ -369,19 +385,94 @@ export function createEtfRotationStrategyTool(): AnyAgentTool {
         }
         lines.push("");
 
-        lines.push("### 调仓建议");
+        // 计算评分离散程度，用于控制调仓频率
+        const scores = results.map((r) => r.totalScore);
+        const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+        const variance = scores.reduce((a, b) => a + Math.pow(b - avgScore, 2), 0) / scores.length;
+        const stdDev = Math.sqrt(variance);
+
+        let urgency: "high" | "medium" | "low";
+        if (stdDev > 15) urgency = "high";
+        else if (stdDev > 10) urgency = "medium";
+        else urgency = "low";
+
+        // 如果有持仓，先输出基于持仓的个性化建议
+        if (holdings.length > 0) {
+          lines.push("### 基于你的持仓的调仓建议");
+          lines.push("");
+
+          const holdingCodes = new Set<string>();
+          for (const h of holdings) {
+            const parsed = parseSymbol(h.symbol);
+            if (parsed) holdingCodes.add(parsed.tradeCode);
+          }
+
+          const heldItems = results.filter((r) => holdingCodes.has(r.code));
+          const notHeldItems = results.filter((r) => !holdingCodes.has(r.code));
+
+          const heldStrong = heldItems.filter((r) => r.advice === "增持");
+          const heldHold = heldItems.filter((r) => r.advice === "持有");
+          const heldWeak = heldItems.filter((r) => r.advice === "减持");
+          const heldAvoid = heldItems.filter((r) => r.advice === "观望");
+
+          const notHeldStrong = notHeldItems.filter((r) => r.advice === "增持").slice(0, 3);
+          const notHeldAvoid = notHeldItems.filter((r) => r.advice === "观望").slice(0, 3);
+
+          if (heldStrong.length > 0) {
+            lines.push(`- **持仓中表现强势，可继续持有或加仓：** ${heldStrong.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+          if (heldHold.length > 0) {
+            lines.push(`- **持仓中表现中性，继续持有：** ${heldHold.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+          if (heldWeak.length > 0) {
+            lines.push(`- **持仓中表现偏弱，建议减仓：** ${heldWeak.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+          if (heldAvoid.length > 0) {
+            lines.push(`- **持仓中得分偏低，建议调出：** ${heldAvoid.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+          if (notHeldStrong.length > 0) {
+            lines.push(`- **未持仓的强势方向，可考虑调入：** ${notHeldStrong.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+          if (notHeldAvoid.length > 0) {
+            lines.push(`- **未持仓的弱势方向，建议回避：** ${notHeldAvoid.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+
+          if (heldItems.length === 0) {
+            lines.push("你提供的持仓代码未能与当前筛选出的 ETF 匹配，可能是代码格式或标的不在分析池中。");
+          }
+          lines.push("");
+        }
+
+        lines.push("### 本期调入调出建议");
         lines.push("");
-        const advices: string[] = [];
-        if (strong.length > 0) {
-          advices.push(`当前 ${strong.map((r) => r.name).join("、")} 等主题动量与资金表现较强，建议择机加仓或切换至这些方向。`);
+
+        if (urgency === "low") {
+          lines.push(`**调仓紧迫度：低**（主题分化不明显，σ=${stdDev.toFixed(1)}）`);
+          lines.push("");
+          lines.push("当前各主题强弱格局不清晰，轮动信号较弱。建议**维持现有配置，减少不必要的调仓操作**，等待更明确的轮动信号出现后再做大幅调整。");
+        } else {
+          lines.push(`**调仓紧迫度：${urgency === "high" ? "高" : "中"}**（主题分化程度 σ=${stdDev.toFixed(1)}）`);
+          lines.push("");
+
+          const buyList = results.filter((r) => r.advice === "增持").slice(0, 3);
+          const sellList = results.filter((r) => r.advice === "观望").slice(0, 3);
+          const keepList = results.filter((r) => r.advice === "持有").slice(0, 3);
+
+          if (buyList.length > 0) {
+            lines.push(`- **建议加仓/调入：** ${buyList.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+          if (sellList.length > 0) {
+            lines.push(`- **建议减仓/调出：** ${sellList.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+          if (keepList.length > 0) {
+            lines.push(`- **继续持有：** ${keepList.map((r) => `${r.name}(${r.code})`).join("、")}`);
+          }
+
+          if (urgency === "medium") {
+            lines.push("");
+            lines.push("轮动信号一般，建议**分批小幅调整**，不必急于一次性全仓切换。");
+          }
         }
-        if (avoid.length > 0) {
-          advices.push(`${avoid.map((r) => r.name).join("、")} 等主题得分偏低，建议减仓或回避，等待轮动信号转强后再介入。`);
-        }
-        if (advices.length === 0) {
-          advices.push("各主题得分较为均衡，建议维持现有配置，等待明确的轮动信号。");
-        }
-        lines.push(advices.join("\n"));
         lines.push("");
 
         lines.push("### 详细评分");

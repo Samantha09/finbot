@@ -3,6 +3,9 @@
   "name": "FinBot Guard",
   "description": "FinBot 安全护栏插件，提供工具参数风险检测和敏感数据脱敏",
   "enabledByDefault": true,
+  "activation": {
+    "onStartup": true
+  },
   "configSchema": {
     "type": "object",
     "properties": {

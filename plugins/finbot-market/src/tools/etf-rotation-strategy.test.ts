@@ -159,6 +159,7 @@ describe("etfRotationStrategy tool", () => {
     expect(parsed.text).toContain("159915");
     expect(parsed.text).toContain("持有");
     expect(parsed.text).toContain("⚠️ 不构成投资建议");
+    expect(parsed.text).toContain("本期调入调出建议");
   });
 
   it("should filter invalid codes and continue", async () => {
@@ -277,6 +278,195 @@ describe("etfRotationStrategy tool", () => {
     expect(parsed.text).toContain("512480");
     expect(parsed.text).toContain("中性主题");
     expect(parsed.text).toContain("回避主题");
-    expect(parsed.text).toContain("调仓建议");
+    expect(parsed.text).toContain("本期调入调出建议");
+  });
+
+  it("should show specific buy/sell advice when dispersion is high", async () => {
+    vi.stubEnv("GF_SKILLS_APIKEY", "test-key");
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({
+        data: {
+          data: {
+            fundList: [
+              {
+                tradeCode: "510300",
+                secuAbbr: "沪深300ETF",
+                assetScale: 2e9,
+                pePercent: 15,
+                pbPercent: 15,
+                roc1m: 8,
+                roc3m: 12,
+                roc6m: 15,
+                netMainForce5d: 2000,
+                netMainForce10d: 3000,
+                sharpRatio1y: 1.5,
+                sharpRatio3y: 1.2,
+                indexTempType: "low",
+              },
+              {
+                tradeCode: "512480",
+                secuAbbr: "半导体ETF",
+                assetScale: 1e9,
+                pePercent: 70,
+                pbPercent: 70,
+                roc1m: -5,
+                roc3m: -8,
+                roc6m: -10,
+                netMainForce5d: -1000,
+                netMainForce10d: -2000,
+                sharpRatio1y: 0.5,
+                sharpRatio3y: 0.3,
+                indexTempType: "high",
+              },
+            ],
+          },
+        },
+      }),
+    } as unknown as Response);
+    vi.stubGlobal("fetch", mockFetch);
+
+    const tool = createEtfRotationStrategyTool();
+    const result = await tool.execute("tc6", { period: "medium" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("调仓紧迫度：高");
+    expect(parsed.text).toContain("建议加仓/调入");
+    expect(parsed.text).toContain("建议减仓/调出");
+  });
+
+  it("should advise holding when dispersion is low", async () => {
+    vi.stubEnv("GF_SKILLS_APIKEY", "test-key");
+
+    // 所有 ETF 得分接近，分化不明显
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({
+        data: {
+          data: {
+            fundList: [
+              {
+                tradeCode: "510300",
+                secuAbbr: "沪深300ETF",
+                assetScale: 2e9,
+                pePercent: 45,
+                pbPercent: 45,
+                roc1m: 2,
+                roc3m: 2,
+                roc6m: 2,
+                netMainForce5d: 200,
+                netMainForce10d: 200,
+                sharpRatio1y: 0.8,
+                sharpRatio3y: 0.8,
+                indexTempType: "ord",
+              },
+              {
+                tradeCode: "159915",
+                secuAbbr: "创业板ETF",
+                assetScale: 1.5e9,
+                pePercent: 48,
+                pbPercent: 48,
+                roc1m: 1,
+                roc3m: 1,
+                roc6m: 1,
+                netMainForce5d: 100,
+                netMainForce10d: 100,
+                sharpRatio1y: 0.7,
+                sharpRatio3y: 0.7,
+                indexTempType: "ord",
+              },
+              {
+                tradeCode: "512480",
+                secuAbbr: "半导体ETF",
+                assetScale: 1e9,
+                pePercent: 50,
+                pbPercent: 50,
+                roc1m: 0,
+                roc3m: 0,
+                roc6m: 0,
+                netMainForce5d: 0,
+                netMainForce10d: 0,
+                sharpRatio1y: 0.6,
+                sharpRatio3y: 0.6,
+                indexTempType: "ord",
+              },
+            ],
+          },
+        },
+      }),
+    } as unknown as Response);
+    vi.stubGlobal("fetch", mockFetch);
+
+    const tool = createEtfRotationStrategyTool();
+    const result = await tool.execute("tc7", { period: "medium" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("调仓紧迫度：低");
+    expect(parsed.text).toContain("维持现有配置");
+    expect(parsed.text).toContain("减少不必要的调仓操作");
+  });
+
+  it("should give personalized advice based on holdings", async () => {
+    vi.stubEnv("GF_SKILLS_APIKEY", "test-key");
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      json: async () => ({
+        data: {
+          data: {
+            fundList: [
+              {
+                tradeCode: "510300",
+                secuAbbr: "沪深300ETF",
+                assetScale: 2e9,
+                pePercent: 15,
+                pbPercent: 15,
+                roc1m: 8,
+                roc3m: 12,
+                roc6m: 15,
+                netMainForce5d: 2000,
+                netMainForce10d: 3000,
+                sharpRatio1y: 1.5,
+                sharpRatio3y: 1.2,
+                indexTempType: "low",
+              },
+              {
+                tradeCode: "512480",
+                secuAbbr: "半导体ETF",
+                assetScale: 1e9,
+                pePercent: 70,
+                pbPercent: 70,
+                roc1m: -5,
+                roc3m: -8,
+                roc6m: -10,
+                netMainForce5d: -1000,
+                netMainForce10d: -2000,
+                sharpRatio1y: 0.5,
+                sharpRatio3y: 0.3,
+                indexTempType: "high",
+              },
+            ],
+          },
+        },
+      }),
+    } as unknown as Response);
+    vi.stubGlobal("fetch", mockFetch);
+
+    const tool = createEtfRotationStrategyTool();
+    const result = await tool.execute("tc8", {
+      period: "medium",
+      holdings: [
+        { symbol: "512480.SH", ratio: 0.3 },
+        { symbol: "510300.SH", ratio: 0.2 },
+      ],
+    });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("基于你的持仓的调仓建议");
+    expect(parsed.text).toContain("持仓中得分偏低，建议调出");
+    expect(parsed.text).toContain("512480");
+    expect(parsed.text).toContain("持仓中表现强势，可继续持有或加仓");
+    expect(parsed.text).toContain("510300");
   });
 });

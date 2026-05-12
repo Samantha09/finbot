@@ -3,6 +3,9 @@
   "name": "FinBot Audit",
   "description": "FinBot 工具调用审计日志插件，记录每次 tool 执行的入参、出参、耗时和状态",
   "enabledByDefault": true,
+  "activation": {
+    "onStartup": true
+  },
   "configSchema": {
     "type": "object",
     "properties": {}
