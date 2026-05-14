@@ -15,6 +15,7 @@ export interface Holding {
   marketValue: number;
   profit?: number;
   profitPercent?: number;
+  assetType?: "equity" | "fund" | "bond" | "cash" | "reits";
 }
 
 export interface Trade {
@@ -35,6 +36,7 @@ export interface AccountSummary {
   holdingMarketValue?: number;
   holdingProfit?: number;
   positionRatio: number;
+  assetBreakdown?: Record<string, number>;
 }
 
 export interface DailyRecord {
@@ -78,6 +80,7 @@ const UpdatePositionSchema = {
           marketValue: { type: "number" as const },
           profit: { type: "number" as const },
           profitPercent: { type: "number" as const },
+          assetType: { type: "string" as const, enum: ["equity", "fund", "bond", "cash", "reits"], description: "资产类型：equity=股票/ETF, fund=基金, bond=债券/国债逆回购, cash=现金/货币基金, reits=REITs" },
         },
       },
     },
@@ -110,6 +113,11 @@ const UpdatePositionSchema = {
         holdingMarketValue: { type: "number" as const },
         holdingProfit: { type: "number" as const },
         positionRatio: { type: "number" as const },
+        assetBreakdown: {
+          type: "object" as const,
+          description: "资产分类市值汇总，如 { equity: 80000, bond: 30000, cash: 10000 }",
+          additionalProperties: { type: "number" as const },
+        },
       },
     },
   },
@@ -405,15 +413,64 @@ function formatReport(current: DailyRecord, previous: DailyRecord | null): strin
     lines.push("");
   }
 
+  lines.push("### 资产配置");
+  const breakdown = s.assetBreakdown;
+  if (breakdown && Object.keys(breakdown).length > 0) {
+    lines.push(`| 类型 | 市值 | 占比 |`);
+    lines.push(`|------|------|------|`);
+    const typeLabels: Record<string, string> = {
+      equity: "权益类",
+      fund: "基金",
+      bond: "债券/固收",
+      cash: "现金/货币",
+      reits: "REITs",
+    };
+    for (const [type, value] of Object.entries(breakdown).sort((a, b) => b[1] - a[1])) {
+      const ratio = value / (s.totalAsset || 1);
+      lines.push(`| ${typeLabels[type] || type} | ${formatNumber(value)} | ${formatPercent(ratio)} |`);
+    }
+  } else {
+    const typeMap = new Map<string, number>();
+    for (const h of current.holdings) {
+      const t = h.assetType || "equity";
+      typeMap.set(t, (typeMap.get(t) || 0) + h.marketValue);
+    }
+    if (typeMap.size > 0) {
+      lines.push(`| 类型 | 市值 | 占比 |`);
+      lines.push(`|------|------|------|`);
+      const typeLabels: Record<string, string> = {
+        equity: "权益类",
+        fund: "基金",
+        bond: "债券/固收",
+        cash: "现金/货币",
+        reits: "REITs",
+      };
+      for (const [type, value] of Array.from(typeMap.entries()).sort((a, b) => b[1] - a[1])) {
+        const ratio = value / (s.totalAsset || 1);
+        lines.push(`| ${typeLabels[type] || type} | ${formatNumber(value)} | ${formatPercent(ratio)} |`);
+      }
+    } else {
+      lines.push("无持仓数据");
+    }
+  }
+  lines.push("");
+
   lines.push("### 持仓明细");
   if (current.holdings.length === 0) {
     lines.push("无持仓");
   } else {
-    lines.push(`| 代码 | 名称 | 数量 | 市值 | 盈亏 | 占比 |`);
-    lines.push(`|------|------|------|------|------|------|`);
+    lines.push(`| 代码 | 名称 | 类型 | 数量 | 市值 | 盈亏 | 占比 |`);
+    lines.push(`|------|------|------|------|------|------|------|`);
+    const typeLabels: Record<string, string> = {
+      equity: "权益",
+      fund: "基金",
+      bond: "债券",
+      cash: "现金",
+      reits: "REITs",
+    };
     for (const h of current.holdings) {
       const ratio = h.marketValue / (s.holdingMarketValue || s.totalAsset || 1);
-      lines.push(`| ${h.symbol} | ${h.name} | ${h.quantity} | ${formatNumber(h.marketValue)} | ${formatNumber(h.profit)} | ${formatPercent(ratio)} |`);
+      lines.push(`| ${h.symbol} | ${h.name} | ${typeLabels[h.assetType || "equity"] || "权益"} | ${h.quantity} | ${formatNumber(h.marketValue)} | ${formatNumber(h.profit)} | ${formatPercent(ratio)} |`);
     }
   }
   lines.push("");
@@ -503,17 +560,26 @@ function formatHistoryReport(records: DailyRecord[]): string {
   }
 
   lines.push("### 持仓变动汇总");
-  const positionMap = new Map<string, { name: string; firstQty: number; lastQty: number }>();
+  const positionMap = new Map<string, { name: string; firstQty: number; lastQty: number; assetType?: string }>();
   for (const r of records) {
     for (const h of r.holdings) {
       const entry = positionMap.get(h.symbol);
       if (!entry) {
-        positionMap.set(h.symbol, { name: h.name, firstQty: h.quantity, lastQty: h.quantity });
+        positionMap.set(h.symbol, { name: h.name, firstQty: h.quantity, lastQty: h.quantity, assetType: h.assetType });
       } else {
         entry.lastQty = h.quantity;
+        if (h.assetType) entry.assetType = h.assetType;
       }
     }
   }
+
+  const typeLabels: Record<string, string> = {
+    equity: "权益",
+    fund: "基金",
+    bond: "债券",
+    cash: "现金",
+    reits: "REITs",
+  };
 
   if (positionMap.size === 0) {
     lines.push("无持仓记录");
@@ -521,7 +587,8 @@ function formatHistoryReport(records: DailyRecord[]): string {
     for (const [symbol, info] of positionMap) {
       const diff = info.lastQty - info.firstQty;
       const sign = diff > 0 ? "+" : "";
-      lines.push(`- **${info.name}（${symbol}）**: ${info.firstQty} → ${info.lastQty}（${sign}${diff}）`);
+      const typeLabel = info.assetType ? `[${typeLabels[info.assetType] || info.assetType}] ` : "";
+      lines.push(`- **${typeLabel}${info.name}（${symbol}）**: ${info.firstQty} → ${info.lastQty}（${sign}${diff}）`);
     }
   }
   lines.push("");

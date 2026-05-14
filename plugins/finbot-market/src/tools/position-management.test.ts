@@ -175,6 +175,28 @@ describe("getPositionReport tool", () => {
     expect(parsed.text).toContain("未找到");
   });
 
+  it("reports asset allocation with mixed types", async () => {
+    await updateTool.execute("tc1", {
+      date: "2026-05-12",
+      holdings: [
+        { ...sampleHolding, assetType: "equity" },
+        { symbol: "019741", name: "24国债13", quantity: 100, marketValue: 10000, assetType: "bond" },
+        { symbol: "004193", name: "中欧货币基金", quantity: 5000, marketValue: 5000, assetType: "cash" },
+      ],
+      trades: [],
+      summary: { ...sampleSummary, totalAsset: 43892.4, holdingMarketValue: 43892.4 },
+    });
+
+    const result = await reportTool.execute("tc2", { date: "2026-05-12" });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.isError).toBe(false);
+    expect(parsed.text).toContain("资产配置");
+    expect(parsed.text).toContain("债券/固收");
+    expect(parsed.text).toContain("现金/货币");
+    expect(parsed.text).toContain("权益");
+  });
+
   it("generates report with holdings only (no previous day)", async () => {
     await updateTool.execute("tc1", {
       date: "2026-05-12",

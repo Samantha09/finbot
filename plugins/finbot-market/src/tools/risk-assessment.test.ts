@@ -26,6 +26,17 @@ describe("assessRisk", () => {
     expect(hk.score).toBe(cn.score + 1);
   });
 
+  it("债券代码返回低风险", () => {
+    const bond = assessRisk("019741", 0.1);
+    expect(bond.level).toBe("低");
+    expect(bond.score).toBeLessThanOrEqual(3);
+    expect(bond.factors[0]).toContain("债券/固收");
+
+    const repo = assessRisk("204001", 0.1);
+    expect(repo.level).toBe("低");
+    expect(repo.score).toBeLessThanOrEqual(3);
+  });
+
   it("分数范围 [1, 10]", () => {
     for (const symbol of ["BTC-USD", "AAPL", "000001.SZ", "00700.HK"]) {
       for (const pos of [0.01, 0.1, 0.3, 0.5, 0.9]) {

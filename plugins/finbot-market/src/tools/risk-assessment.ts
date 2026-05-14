@@ -19,9 +19,18 @@ interface RiskProfile {
   factors: string[];
 }
 
+const BOND_CODE_RE =
+  /^(019\d{3}|020\d{3}|10\d{4}|11\d{4}|12\d{4}|204\d{3}|1318\d{2}|118\d{4}|113\d{4}|132\d{4})/;
+
 export function assessRisk(symbol: string, positionSize: number): RiskProfile {
   const factors: string[] = [];
   let score = 5;
+
+  if (BOND_CODE_RE.test(symbol) || symbol.includes("国债") || symbol.includes("债券") || symbol.includes("逆回购")) {
+    score = Math.max(1, Math.min(10, 2 + (positionSize > 0.5 ? 1 : 0)));
+    const level = score >= 4 ? "中等" : "低";
+    return { level, score, factors: ["债券/固收类资产：波动较低，以获取票息收益为主"] };
+  }
 
   if (symbol.includes("-USD") || symbol.includes("-USDT")) {
     score += 3;

@@ -79,6 +79,27 @@ describe("portfolioAnalysis tool", () => {
     expect(parsed.text).toContain("分散");
   });
 
+  it("固收和现金类资产不参与权益集中度分析", async () => {
+    const result = await tool.execute("tc6", {
+      holdings: [
+        { symbol: "AAPL", weight: 0.5, assetType: "equity" },
+        { symbol: "GOOGL", weight: 0.3, assetType: "equity" },
+        { symbol: "019741", weight: 0.15, assetType: "bond" },
+        { symbol: "CASH", weight: 0.05, assetType: "cash" },
+      ],
+    });
+    const text = (result as any).content[0].text;
+    const parsed = JSON.parse(text);
+    expect(parsed.text).toContain("**权益类标的数量**: 2");
+    expect(parsed.text).toContain("非权益类持仓");
+    expect(parsed.text).toContain("019741");
+    expect(parsed.text).toContain("CASH");
+    // bond/cash 不在权益类持仓明细中
+    const equitySection = parsed.text.split("### 权益类持仓明细")[1]?.split("### 非权益类持仓")[0] || "";
+    expect(equitySection).not.toContain("019741");
+    expect(equitySection).not.toContain("CASH");
+  });
+
   it("输出包含持仓明细表格", async () => {
     const result = await tool.execute("tc5", {
       holdings: [
