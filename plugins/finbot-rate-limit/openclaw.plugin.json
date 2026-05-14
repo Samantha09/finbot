@@ -47,5 +47,8 @@
         "description": "退避重试配置"
       }
     }
+  },
+  "contracts": {
+    "tools": []
   }
 }

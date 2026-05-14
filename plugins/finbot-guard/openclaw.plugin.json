@@ -31,5 +31,8 @@
         "description": "额外敏感字段名"
       }
     }
+  },
+  "contracts": {
+    "tools": []
   }
 }

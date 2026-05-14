@@ -9,5 +9,10 @@
   "configSchema": {
     "type": "object",
     "properties": {}
+  },
+  "contracts": {
+    "tools": [
+      "auditReport"
+    ]
   }
 }
