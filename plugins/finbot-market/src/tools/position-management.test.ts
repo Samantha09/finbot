@@ -29,6 +29,10 @@ vi.mock("fs/promises", () => ({
     const files = keys.map((k) => path.basename(k));
     return Promise.resolve(files);
   }),
+  unlink: vi.fn((filePath: string) => {
+    fileMap.delete(filePath);
+    return Promise.resolve(undefined);
+  }),
 }));
 
 const sampleHolding = {
@@ -51,6 +55,7 @@ const sampleTrade = {
   price: 4.819,
   quantity: 400,
   amount: 1927.60,
+  reason: "定投加仓",
 };
 
 const sampleSummary = {
@@ -117,6 +122,32 @@ describe("updatePosition tool", () => {
     const text = (result as any).content[0].text;
     const parsed = JSON.parse(text);
     expect(parsed.isError).toBe(true);
+  });
+
+  it("cleans up records older than 90 days", async () => {
+    const oldDate = "2026-01-01";
+    const recentDate = "2026-05-12";
+    const dataDir = path.join(process.env.HOME || "", ".openclaw", "finbot-positions");
+
+    await tool.execute("tc-old", {
+      date: oldDate,
+      holdings: [sampleHolding],
+      trades: [],
+      summary: sampleSummary,
+    });
+
+    await tool.execute("tc-recent", {
+      date: recentDate,
+      holdings: [sampleHolding],
+      trades: [],
+      summary: sampleSummary,
+    });
+
+    const oldFilePath = path.join(dataDir, `${oldDate}.json`);
+    const recentFilePath = path.join(dataDir, `${recentDate}.json`);
+
+    expect(fileMap.has(oldFilePath)).toBe(false);
+    expect(fileMap.has(recentFilePath)).toBe(true);
   });
 });
 

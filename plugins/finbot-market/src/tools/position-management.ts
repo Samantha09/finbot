@@ -25,6 +25,7 @@ export interface Trade {
   price: number;
   quantity: number;
   amount?: number;
+  reason?: string;
 }
 
 export interface AccountSummary {
@@ -94,6 +95,7 @@ const UpdatePositionSchema = {
           price: { type: "number" as const },
           quantity: { type: "number" as const },
           amount: { type: "number" as const },
+          reason: { type: "string" as const, description: "调仓原因，如止盈、止损、轮动调仓、定投加仓、Agent建议等" },
         },
       },
     },
@@ -113,6 +115,41 @@ const UpdatePositionSchema = {
   },
   required: ["date", "holdings", "summary"] as const,
 };
+
+async function cleanupOldRecords(dataDir: string, maxAgeDays: number): Promise<void> {
+  try {
+    const entries = await fs.readdir(dataDir);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - maxAgeDays);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+    for (const entry of entries) {
+      if (entry.endsWith(".json") && entry !== "latest.json") {
+        const date = entry.replace(/\.json$/, "");
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date < cutoffStr) {
+          await fs.unlink(path.join(dataDir, entry));
+        }
+      }
+    }
+
+    const jsonlPath = path.join(dataDir, "positions.jsonl");
+    if (await fileExists(jsonlPath)) {
+      const content = await fs.readFile(jsonlPath, "utf-8");
+      const lines = content.split("\n").filter((line) => line.trim() !== "");
+      const filtered = lines.filter((line) => {
+        try {
+          const parsed = JSON.parse(line);
+          return !(parsed.date && parsed.date < cutoffStr);
+        } catch {
+          return true;
+        }
+      });
+      await fs.writeFile(jsonlPath, filtered.join("\n") + "\n");
+    }
+  } catch {
+    // ignore cleanup errors
+  }
+}
 
 export function createUpdatePositionTool(): AnyAgentTool {
   return {
@@ -168,6 +205,8 @@ export function createUpdatePositionTool(): AnyAgentTool {
           });
         lines.push(JSON.stringify(record));
         await fs.writeFile(jsonlFilePath, lines.join("\n") + "\n");
+
+        await cleanupOldRecords(DATA_DIR, 90);
 
         const actionText = existed ? "已更新" : "已保存";
         const holdingSymbols = [...new Set(holdings.map((h) => h.symbol))].join(", ");
@@ -275,9 +314,18 @@ interface PositionChange {
   reason: string;
 }
 
-function calculateChanges(current: Holding[], previous: Holding[]): PositionChange[] {
+function calculateChanges(current: Holding[], previous: Holding[], trades?: Trade[]): PositionChange[] {
   const prevMap = new Map(previous.map((h) => [h.symbol, h]));
   const currMap = new Map(current.map((h) => [h.symbol, h]));
+  const tradeMap = new Map<string, string>();
+  if (trades) {
+    for (const t of trades) {
+      if (t.reason) {
+        const existing = tradeMap.get(t.symbol);
+        tradeMap.set(t.symbol, existing ? `${existing}; ${t.reason}` : t.reason);
+      }
+    }
+  }
   const changes: PositionChange[] = [];
 
   for (const h of current) {
@@ -285,30 +333,33 @@ function calculateChanges(current: Holding[], previous: Holding[]): PositionChan
     if (prev) {
       const diff = h.quantity - prev.quantity;
       if (diff !== 0) {
+        const tradeReason = tradeMap.get(h.symbol);
         changes.push({
           symbol: h.symbol,
           name: h.name,
           change: diff,
-          reason: diff > 0 ? "买入" : "卖出",
+          reason: tradeReason || (diff > 0 ? "买入" : "卖出"),
         });
       }
     } else {
+      const tradeReason = tradeMap.get(h.symbol);
       changes.push({
         symbol: h.symbol,
         name: h.name,
         change: h.quantity,
-        reason: "新开仓",
+        reason: tradeReason || "新开仓",
       });
     }
   }
 
   for (const h of previous) {
     if (!currMap.has(h.symbol)) {
+      const tradeReason = tradeMap.get(h.symbol);
       changes.push({
         symbol: h.symbol,
         name: h.name,
         change: -h.quantity,
-        reason: "清仓",
+        reason: tradeReason || "清仓",
       });
     }
   }
@@ -381,7 +432,7 @@ function formatReport(current: DailyRecord, previous: DailyRecord | null): strin
   lines.push("");
 
   if (previous) {
-    const changes = calculateChanges(current.holdings, previous.holdings);
+    const changes = calculateChanges(current.holdings, previous.holdings, current.trades);
     lines.push("### 持仓变动");
     if (changes.length === 0) {
       lines.push("无变动");
@@ -442,11 +493,11 @@ function formatHistoryReport(records: DailyRecord[]): string {
 
   if (allTrades.length > 0) {
     lines.push("### 成交明细");
-    lines.push(`| 日期 | 时间 | 代码 | 方向 | 价格 | 数量 | 金额 |`);
-    lines.push(`|------|------|------|------|------|------|------|`);
+    lines.push(`| 日期 | 时间 | 代码 | 方向 | 价格 | 数量 | 金额 | 调仓原因 |`);
+    lines.push(`|------|------|------|------|------|------|------|----------|`);
     for (const t of allTrades) {
       const dir = t.direction === "buy" ? "买入" : "卖出";
-      lines.push(`| ${t.time ? t.time.split(" ")[0] : "-"} | ${t.time ? t.time.split(" ")[1] || t.time : "-"} | ${t.symbol} | ${dir} | ${formatNumber(t.price)} | ${t.quantity} | ${formatNumber(t.amount)} |`);
+      lines.push(`| ${t.time ? t.time.split(" ")[0] : "-"} | ${t.time ? t.time.split(" ")[1] || t.time : "-"} | ${t.symbol} | ${dir} | ${formatNumber(t.price)} | ${t.quantity} | ${formatNumber(t.amount)} | ${t.reason || "-"} |`);
     }
     lines.push("");
   }
