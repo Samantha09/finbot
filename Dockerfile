@@ -2,8 +2,8 @@ FROM node:24-bookworm-slim
 
 WORKDIR /app
 
-# Install OpenClaw globally
-RUN npm install -g openclaw
+# Install OpenClaw and MiniMax CLI globally
+RUN npm install -g openclaw mmx-cli
 
 # Copy plugin source and build
 COPY plugins/finbot-market/package.json plugins/finbot-market/tsconfig.json plugins/finbot-market/openclaw.plugin.json plugins/finbot-market/

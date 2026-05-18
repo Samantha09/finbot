@@ -1,7 +1,8 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { AnyAgentTool, AuditLogEntry, AuditOptions } from "./types.js";
+
+type ToolResult = Awaited<ReturnType<AnyAgentTool["execute"]>>;
 
 const DEFAULT_OPTIONS: Required<AuditOptions> = {
   logDir: path.join(process.env.HOME || "/tmp", ".openclaw", "audit-logs"),
@@ -126,7 +127,7 @@ export function withAudit(
       const start = Date.now();
       let status: "success" | "error" = "success";
       let errorMsg: string | null = null;
-      let result: AgentToolResult<unknown> | undefined;
+      let result: ToolResult | undefined;
 
       try {
         result = await tool.execute(toolCallId, params, signal, onUpdate);
